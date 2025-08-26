@@ -61,22 +61,24 @@ export default function Navbar() {
               <a href="#" className="hover:text-green-700"><FaLinkedinIn /></a>
             </div>
             <div className="h-4 w-px bg-black/10" />
-            {!user ? (
-              <Link to="/login" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-                <FaUserAlt />
-                <span>Login</span>
-              </Link>
-            ) : user.role === "Admin" ? (
-              <Link to="/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-                <MdDashboard />
-                <span>Dashboard</span>
-              </Link>
-            ) : (
-              <button onClick={handleLogout} className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700">
-                <IoIosLogOut />
-                <span>Logout</span>
-              </button>
-            )}
+         {!user ? (
+  <Link to="/login" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+    <FaUserAlt /><span>Login</span>
+  </Link>
+) : user.role === "Admin" ? (
+  <Link to="/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+    <MdDashboard /><span>Dashboard</span>
+  </Link>
+) : user.role === "Teacher" ? (
+  <Link to="/teacher/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+    <MdDashboard /><span>Teacher</span>
+  </Link>
+) : (
+  <button onClick={handleLogout} className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700">
+    <IoIosLogOut /><span>Logout</span>
+  </button>
+)}
+
           </div>
         </div>
 

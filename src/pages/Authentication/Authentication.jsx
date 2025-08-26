@@ -26,6 +26,7 @@ export default function Authentication() {
     profile_picture: null,
     password: "",
     confirm_password: "",
+    is_approved: false,
   });
 
   const [registers, setRegister] = useState(false);
@@ -96,6 +97,8 @@ export default function Authentication() {
         profile_picture: null,
         password: "",
         confirm_password: "",
+        role:"",
+        is_approved: false,
       });
 
       console.log(response.data);

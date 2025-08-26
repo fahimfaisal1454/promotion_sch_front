@@ -9,7 +9,7 @@ import Contact from "./pages/Contacts.jsx";
 import Home from "./pages/Home/Home.jsx";
 import Academic from "./pages/Academic.jsx";
 import FacnStaff from "./pages/FacnStaff.jsx";
-import Notice from "../src/pages/Notice/Notice.jsx"
+import Notice from "../src/pages/Notice/Notice.jsx";
 import { UserProvider } from "./Provider/UseProvider.jsx";
 import Authentication from "./pages/Authentication/Authentication.jsx";
 import ProtectedRoute from "./Provider/ProtectedRoute.jsx";
@@ -22,8 +22,6 @@ import AboutCollege from "./pages/AboutCollege.jsx";
 import Routine from "./pages/Academic/Routine.jsx";
 import Acknowledgment from "./pages/Acknowledgment/Acknowledgment.jsx";
 import Result from "./pages/Academic/Result.jsx";
-
-
 
 import Dashboard from "../src/Layout/Dashboard.jsx";
 import AddNotice from "./pages/DashboardPages/Notice/Notice.jsx";
@@ -40,7 +38,17 @@ import CommitteeMember from "./pages/DashboardPages/Master/CommitteeMember.jsx";
 import ContactList from "./pages/DashboardPages/Master/ContactList.jsx";
 import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgment.jsx";
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
+import TeacherApprovals from "./pages/DashboardPages/Default/TeacherApprovals.jsx";
 
+/* === Teacher Panel imports (new) === */
+import TeacherPanel from "./Layout/TeacherPanel.jsx";
+import TeacherDashboard from "./pages/Teachers/Dashboard.jsx";
+import MyClasses from "./pages/Teachers/MyClasses.jsx";
+import Attendance from "./pages/Teachers/Attendance.jsx";
+import Exams from "./pages/Teachers/Exams.jsx";
+import Assignments from "./pages/Teachers/Assignments.jsx";
+import Reports from "./pages/Teachers/Reports.jsx";
+import TeacherNotices from "./pages/Teachers/Notices.jsx";
 
 // Define the router
 const router = createBrowserRouter([
@@ -53,19 +61,17 @@ const router = createBrowserRouter([
         index: true,
         element: <Home />,
       },
-
       {
         path: "contact",
         element: <Contact />,
       },
       {
         path: "/login",
-        element: <Authentication></Authentication>,
+        element: <Authentication />,
       },
-
       {
         path: "/notice",
-        element: <Notice></Notice>,
+        element: <Notice />,
       },
       {
         path: "/academic",
@@ -73,9 +79,8 @@ const router = createBrowserRouter([
       },
       {
         path: "/facnstaff",
-        element: <Faculty></Faculty>,
+        element: <Faculty />,
       },
-
       {
         path: "/gallery",
         element: <Gallery />,
@@ -103,70 +108,52 @@ const router = createBrowserRouter([
     ],
   },
 
+  // === Admin Dashboard (existing) ===
   {
     path: "/dashboard",
-    element:<ProtectedRoute><Dashboard></Dashboard></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
     children: [
+      { path: "college-info", element: <CollegeInfo /> },
+      { path: "notices", element: <AddNotice /> },
+      { path: "contact-info", element: <ContactList /> },
+      { path: "gallery-upload", element: <GalleryUpload /> },
+      { path: "principal-info", element: <PrincipalForms /> },
+      { path: "student-info-form", element: <StudentInfo /> },
+      { path: "teacher-info-form", element: <TeacherInfo /> },
+      { path: "staff-info-form", element: <StaffInfo /> },
+      { path: "class-routine", element: <ClassRoutine /> },
+      { path: "add-class", element: <AddClass /> },
+      { path: "add-subject", element: <AddSubject /> },
+      { path: "committee-member", element: <CommitteeMember /> },
+      { path: "add-acknowledgement", element: <AdminAcknowledgment /> },
+      { path: "add-result", element: <ResultManager /> },
       {
-        path: "college-info",
-        element:<CollegeInfo></CollegeInfo> , 
+        path: "teacher-approvals",
+        element: <TeacherApprovals />,
       },
-      {
-        path: "notices",
-        element: <AddNotice></AddNotice>, 
-      },
-      {
-        path: "contact-info",
-        element:  <ContactList></ContactList>, 
-      },
-      {
-        path: "gallery-upload",
-        element: <GalleryUpload></GalleryUpload>, 
-      },
-      {
-        path: "principal-info",
-        element: <PrincipalForms></PrincipalForms>,
-      },
-        {
-        path: "student-info-form",
-        element: <StudentInfo></StudentInfo>,
-      },
-        {
-        path: "teacher-info-form",
-        element: <TeacherInfo></TeacherInfo>,
-      },
-      {
-        path: "staff-info-form",
-        element: <StaffInfo></StaffInfo>,
-      },
+    ],
+  },
 
-       {
-        path: "class-routine",
-        element: <ClassRoutine></ClassRoutine>,
-      },
-
-      {
-        path: "add-class",
-        element: <AddClass></AddClass>,
-      },
-
-      {
-        path: "add-subject",
-        element: <AddSubject></AddSubject>,
-      },
-
-       {
-        path: "committee-member",
-        element: <CommitteeMember></CommitteeMember>,
-      },
-      {
-        path: "add-acknowledgement",
-        element: <AdminAcknowledgment></AdminAcknowledgment>,
-      },
-      {
-        path: "add-result",
-        element: <ResultManager></ResultManager>,
-      }
+  // === Teacher Panel (new) ===
+  {
+    path: "/teacher",
+    element: (
+      <ProtectedRoute>
+        <TeacherPanel />
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: "dashboard", element: <TeacherDashboard /> },
+      { path: "classes", element: <MyClasses /> },
+      { path: "attendance", element: <Attendance /> },
+      { path: "exams", element: <Exams /> },
+      { path: "assignments", element: <Assignments /> },
+      { path: "reports", element: <Reports /> },
+      { path: "notices", element: <TeacherNotices /> },
     ],
   },
 ]);
