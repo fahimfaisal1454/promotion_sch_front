@@ -1,10 +1,10 @@
+// src/pages/Authentication/Authentication.jsx
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuDelete } from "react-icons/lu";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useUser } from "../../Provider/UseProvider";
 import AxiosInstance from "../../components/AxiosInstance";
-
 
 export default function Authentication() {
   const navigate = useNavigate();
@@ -26,13 +26,14 @@ export default function Authentication() {
     profile_picture: null,
     password: "",
     confirm_password: "",
-    is_approved: false,
+    is_approved: false, // stays in local state if you use it elsewhere
   });
 
   const [registers, setRegister] = useState(false);
   const [showName1, setShowName1] = useState("");
   const fileInputRef = useRef();
 
+  // --- Login handlers ---
   const handleLoginChange = (e) => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
   };
@@ -50,7 +51,6 @@ export default function Authentication() {
 
       localStorage.setItem("access_token", token);
       refreshUser();
-
       alert("Login successful!");
       navigate("/");
     } catch (error) {
@@ -61,6 +61,7 @@ export default function Authentication() {
     }
   };
 
+  // --- Register handlers ---
   const handleFileChange = (e) => {
     if (e.target.files[0]) {
       const imageFile = e.target.files[0];
@@ -82,13 +83,23 @@ export default function Authentication() {
       return;
     }
 
-    const formData = new FormData();
-    Object.entries(user).forEach(([key, value]) => {
-      if (value) formData.append(key, value);
-    });
+    // Only send fields the serializer accepts
+    const fd = new FormData();
+    fd.append("username", (user.username || user.email || "").trim());
+    fd.append("email", (user.email || "").trim());
+    fd.append("password", user.password);
+    fd.append("confirm_password", user.confirm_password);
+
+    if (user.full_name) fd.append("full_name", user.full_name.trim());
+    if (user.phone) fd.append("phone", user.phone.trim());
+    // optional (model defaults to General, but OK to send)
+    fd.append("role", "General");
+    if (user.profile_picture) fd.append("profile_picture", user.profile_picture);
 
     try {
-      const response = await AxiosInstance.post("register/",formData,);
+      // Let the browser set Content-Type boundary automatically
+      const response = await AxiosInstance.post("register/", fd);
+      // reset
       setUser({
         username: "",
         full_name: "",
@@ -97,16 +108,18 @@ export default function Authentication() {
         profile_picture: null,
         password: "",
         confirm_password: "",
-        role:"",
         is_approved: false,
       });
-
-      console.log(response.data);
       setShowName1("");
       alert("Registration successful!");
       navigate("/");
     } catch (error) {
-      alert(error.response?.data?.message || "Something went wrong!");
+      const data = error?.response?.data;
+      alert(
+        typeof data === "string"
+          ? data
+          : JSON.stringify(data || "Something went wrong!", null, 2)
+      );
     }
   };
 
@@ -134,7 +147,6 @@ export default function Authentication() {
             value={user.full_name}
             onChange={(e) => setUser({ ...user, full_name: e.target.value })}
             placeholder="full Name"
-            required
             className="p-3 h-8 w-full border rounded-md border-black text-sm"
           />
 
@@ -151,14 +163,15 @@ export default function Authentication() {
             value={user.phone}
             onChange={(e) => setUser({ ...user, phone: e.target.value })}
             placeholder="Mobile Number"
-            required
             className="p-3 h-8 w-full border rounded-md border-black text-sm"
           />
 
-          <label className="block text-start text-sm text-gray-600">Profile Picture</label>
+          <label className="block text-start text-sm text-gray-600">
+            Profile Picture
+          </label>
           <label
             className="flex w-full cursor-pointer"
-            onClick={() => fileInputRef.current.click()}
+            onClick={() => fileInputRef.current?.click()}
           >
             <p className="truncate px-4 py-1 w-full border text-gray-500 border-black rounded-md shadow-md">
               {showName1 || "CHOOSE FILE"}
@@ -185,14 +198,20 @@ export default function Authentication() {
 
           {[
             { field: "password", show: showPassword, toggle: setShowPassword },
-            { field: "confirm_password", show: showConfirmPassword, toggle: setShowConfirmPassword },
+            {
+              field: "confirm_password",
+              show: showConfirmPassword,
+              toggle: setShowConfirmPassword,
+            },
           ].map(({ field, show, toggle }) => (
             <div key={field} className="relative mb-3">
               <input
                 name={field}
                 type={show ? "text" : "password"}
                 value={user[field]}
-                onChange={(e) => setUser({ ...user, [field]: e.target.value })}
+                onChange={(e) =>
+                  setUser({ ...user, [field]: e.target.value })
+                }
                 placeholder={field === "password" ? "Password" : "Confirm Password"}
                 required
                 className="p-3 h-8 w-full border rounded-md border-black text-sm pr-10"
@@ -213,10 +232,17 @@ export default function Authentication() {
           className="btn py-2 px-5 mt-6 shadow-lg border border-black rounded-md block"
         />
         <p className="mt-4 text-center">
-          Already have an account? <span onClick={() => setRegister(false)} className="underline cursor-pointer font-semibold">Login</span>
+          Already have an account?{" "}
+          <span
+            onClick={() => setRegister(false)}
+            className="underline cursor-pointer font-semibold"
+          >
+            Login
+          </span>
         </p>
       </form>
 
+      {/* Right-side image panel */}
       <div
         className={`hidden lg:block absolute w-1/2 h-full top-0 z-50 duration-500 overflow-hidden bg-black/20 ${
           registers ? "translate-x-full rounded-bl-4xl" : "rounded-br-4xl"
@@ -229,9 +255,12 @@ export default function Authentication() {
         />
       </div>
 
+      {/* Login Form */}
       <form
         onSubmit={handleLogin}
-        className={`p-8 w-full mr-0 ml-auto duration-500 ${registers ? "lg:translate-x-full hidden lg:block" : ""}`}
+        className={`p-8 w-full mr-0 ml-auto duration-500 ${
+          registers ? "lg:translate-x-full hidden lg:block" : ""
+        }`}
       >
         <h1 className="text-2xl lg:text-4xl pb-4">Login</h1>
         <input
@@ -261,7 +290,13 @@ export default function Authentication() {
         </div>
 
         <p className="mb-3 text-center">
-          Don’t have an account? <span onClick={() => setRegister(true)} className="underline cursor-pointer font-semibold">Register</span>
+          Don’t have an account?{" "}
+          <span
+            onClick={() => setRegister(true)}
+            className="underline cursor-pointer font-semibold"
+          >
+            Register
+          </span>
         </p>
 
         <button
