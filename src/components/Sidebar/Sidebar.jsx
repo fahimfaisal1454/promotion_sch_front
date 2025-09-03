@@ -171,6 +171,10 @@ export default function Sidebar() {
               <RiTeamFill className="text-lg" />
               {!collapsed && "কর্মচারীর তথ্য"}
             </NavLink>
+            <NavLink to="/dashboard/users" className={navLinkStyle}>
+  <RiTeamFill className="text-lg" />
+  {!collapsed && "ব্যবহারকারী (Users)"}
+</NavLink>
             <NavLink to="/dashboard/teacher-approvals" className={navLinkStyle}>
   <FaChalkboardTeacher className="text-lg" />
   {!collapsed && "শিক্ষক অনুমোদন"}

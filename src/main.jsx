@@ -39,6 +39,7 @@ import ContactList from "./pages/DashboardPages/Master/ContactList.jsx";
 import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgment.jsx";
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
 import TeacherApprovals from "./pages/DashboardPages/Default/TeacherApprovals.jsx";
+import ManageUsers from "./pages/Admin/ManageUsers.jsx";
 
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
@@ -136,6 +137,7 @@ const router = createBrowserRouter([
         path: "teacher-approvals",
         element: <TeacherApprovals />,
       },
+      { path: "users", element: <ManageUsers /> },
     ],
   },
 
