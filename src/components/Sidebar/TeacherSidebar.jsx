@@ -72,6 +72,11 @@ export default function TeacherSidebar() {
           <FaChalkboardTeacher className="text-lg" />
           {!collapsed && "My Classes"}
         </NavLink>
+        <NavLink to="/teacher/students" className={navLinkStyle} title="Students">
+          {/* choose any icon you already use; keeping style consistent */}
+          <FaChalkboardTeacher className="text-lg" />
+          {!collapsed && "Students"}
+        </NavLink>
 
         <NavLink to="/teacher/attendance" className={navLinkStyle} title="Attendance">
           <FaRegCalendarAlt className="text-lg" />

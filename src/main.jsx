@@ -49,6 +49,7 @@ import Exams from "./pages/Teachers/Exams.jsx";
 import Assignments from "./pages/Teachers/Assignments.jsx";
 import Reports from "./pages/Teachers/Reports.jsx";
 import TeacherNotices from "./pages/Teachers/Notices.jsx";
+import MyStudents from "./pages/Teachers/MyStudents.jsx";
 
 // Define the router
 const router = createBrowserRouter([
@@ -154,6 +155,7 @@ const router = createBrowserRouter([
       { path: "assignments", element: <Assignments /> },
       { path: "reports", element: <Reports /> },
       { path: "notices", element: <TeacherNotices /> },
+      { path: "students", element: <MyStudents /> },
     ],
   },
 ]);
