@@ -1,97 +1,256 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
 
 export default function ManageUsers() {
-  const [rows, setRows] = useState([]);
+  const location = useLocation();
+  const preselectTeacherId = location.state?.teacherId || null;
+
+  const [teachers, setTeachers] = useState([]);
+  const [users, setUsers] = useState([]);
+
   const [form, setForm] = useState({
-    username: "", email: "", role: "Teacher", phone: "",
-    is_active: true, must_change_password: true, password: "" // optional
+    teacher_id: "",
+    username: "",
+    email: "",
+    phone: "",
+    role: "Teacher",
+    password: "",
+    is_active: true,
+    must_change_password: true,
   });
-  const [q, setQ] = useState(""); const [roleFilter, setRoleFilter] = useState("");
-  const [justCreatedPw, setJustCreatedPw] = useState(null);
 
-  const load = async () => {
-    const sp = new URLSearchParams();
-    if (q) sp.append("q", q);
-    if (roleFilter) sp.append("role", roleFilter);
-    const { data } = await AxiosInstance.get(`admin/users/?${sp.toString()}`);
-    setRows(data?.results || data || []);
+  // helpers
+  const selectedTeacher = useMemo(
+    () => teachers.find(t => String(t.id) === String(form.teacher_id)),
+    [teachers, form.teacher_id]
+  );
+
+  const loadTeachers = async () => {
+    const res = await AxiosInstance.get("teachers/?linked=false");
+    setTeachers(res.data || []);
   };
 
-  useEffect(() => { load(); }, []);
-  useEffect(() => { load(); }, [q, roleFilter]);
+  const loadUsers = async () => {
+    const res = await AxiosInstance.get("admin/users/?role=Teacher");
+    setUsers(res.data || []);
+  };
 
-  const createUser = async (e) => {
+  useEffect(() => {
+    loadTeachers().catch(console.error);
+    loadUsers().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (preselectTeacherId && teachers.length) {
+      const t = teachers.find(x => Number(x.id) === Number(preselectTeacherId));
+      if (t) {
+        setForm(f => ({
+          ...f,
+          teacher_id: t.id,
+          username: (t.full_name || "").toLowerCase().replace(/\s+/g, ""),
+          email: t.contact_email || "",
+          phone: t.contact_phone || "",
+        }));
+      }
+    }
+  }, [preselectTeacherId, teachers]);
+
+  const onChange = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const onTeacherChange = (e) => {
+    const id = e.target.value;
+    const t = teachers.find(x => String(x.id) === String(id));
+    setForm(prev => ({
+      ...prev,
+      teacher_id: id,
+      username: t ? (t.full_name || "").toLowerCase().replace(/\s+/g, "") : "",
+      email: t?.contact_email || "",
+      phone: t?.contact_phone || "",
+      role: "Teacher",
+    }));
+  };
+
+  const handleCreate = async (e) => {
     e.preventDefault();
-    setJustCreatedPw(null);
-    const payload = { ...form };
-    if (!payload.password) delete payload.password; // auto-generate server-side
-    const { data } = await AxiosInstance.post("admin/users/", payload);
-    setJustCreatedPw(data?.temp_password || null);
-    setForm({ username:"", email:"", role:"Teacher", phone:"", is_active:true, must_change_password:true, password:"" });
-    await load();
+    if (!form.teacher_id) return alert("Select a teacher first.");
+    if (!form.username) return alert("Username is required.");
+    try {
+      const payload = { ...form };
+      if (!payload.password) delete payload.password;
+      const res = await AxiosInstance.post("admin/users/", payload);
+      const tempPw = res.data?.temp_password;
+      alert(`Teacher user created!${tempPw ? ` Temp password: ${tempPw}` : ""}`);
+      await Promise.all([loadUsers(), loadTeachers()]);
+      setForm(f => ({
+        teacher_id: "",
+        username: "",
+        email: "",
+        phone: "",
+        role: "Teacher",
+        password: "",
+        is_active: true,
+        must_change_password: true,
+      }));
+    } catch (err) {
+      const msg = err?.response?.data || err?.message || "Create failed";
+      console.error(msg);
+      alert(typeof msg === "string" ? msg : JSON.stringify(msg));
+    }
   };
 
-  const resetPassword = async (id) => {
-    const { data } = await AxiosInstance.patch(`admin/users/${id}/reset-password/`, {});
-    alert(`Temp password: ${data?.temp_password}`);
+  // 🔑 NEW: reset password
+  const handleResetPassword = async (id) => {
+    if (!window.confirm("Re-generate a new password for this user?")) return;
+    try {
+      const res = await AxiosInstance.patch(`admin/users/${id}/reset-password/`);
+      const tempPw = res.data?.temp_password;
+      alert(`Password reset successful! New temporary password: ${tempPw}`);
+      await loadUsers();
+    } catch (err) {
+      console.error("Reset password failed", err);
+      alert("Reset password failed. Check console.");
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 space-y-6">
       <h2 className="text-2xl font-semibold">Create Teacher/Student</h2>
 
-      <form onSubmit={createUser} className="bg-white border rounded-xl p-4 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="border rounded px-3 py-2" placeholder="Username"
-                 value={form.username} onChange={e=>setForm(p=>({...p, username:e.target.value}))} required />
-          <input className="border rounded px-3 py-2" placeholder="Email"
-                 value={form.email} onChange={e=>setForm(p=>({...p, email:e.target.value}))} />
-          <select className="border rounded px-3 py-2" value={form.role} onChange={e=>setForm(p=>({...p, role:e.target.value}))}>
-            <option>Teacher</option><option>Student</option><option>Admin</option><option>General</option>
+      {/* Create user form */}
+      <form onSubmit={handleCreate} className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 bg-white p-4 rounded shadow">
+        <div className="col-span-1">
+          <label className="block text-sm mb-1">Teacher</label>
+          <select
+            value={form.teacher_id}
+            onChange={onTeacherChange}
+            className="w-full border rounded p-2"
+            required
+          >
+            <option value="">-- Select teacher --</option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.full_name} {t.designation ? `– ${t.designation}` : ""}
+              </option>
+            ))}
           </select>
-          <input className="border rounded px-3 py-2" placeholder="Phone"
-                 value={form.phone} onChange={e=>setForm(p=>({...p, phone:e.target.value}))} />
-          <input className="border rounded px-3 py-2" placeholder="Temp password (optional)"
-                 value={form.password} onChange={e=>setForm(p=>({...p, password:e.target.value}))} />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.is_active}
-                   onChange={e=>setForm(p=>({...p, is_active:e.target.checked}))} /> Active
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Username</label>
+          <input
+            value={form.username}
+            onChange={(e) => onChange("username", e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="username"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Role</label>
+          <select
+            value={form.role}
+            onChange={(e) => onChange("role", e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option>Teacher</option>
+            <option>Student</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Email</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => onChange("email", e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="example@email.com"
+          />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Phone</label>
+          <input
+            value={form.phone}
+            onChange={(e) => onChange("phone", e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="01XXXXXXXXX"
+          />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Password (optional)</label>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(e) => onChange("password", e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="leave blank to auto-generate"
+          />
+        </div>
+        <div className="flex items-center gap-6">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={form.must_change_password}
+              onChange={(e) => onChange("must_change_password", e.target.checked)}
+            />
+            <span>Must change password</span>
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.must_change_password}
-                   onChange={e=>setForm(p=>({...p, must_change_password:e.target.checked}))} />
-            Must change password
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(e) => onChange("is_active", e.target.checked)}
+            />
+            <span>Active</span>
           </label>
         </div>
-        <button className="px-4 py-2 bg-slate-900 text-white rounded-md">Create</button>
-        {justCreatedPw && (
-          <p className="text-sm text-emerald-700 mt-2">
-            Temp password: <b>{justCreatedPw}</b> (share with user)
-          </p>
-        )}
+        <div className="col-span-full">
+          <button
+            type="submit"
+            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded"
+          >
+            Create
+          </button>
+        </div>
       </form>
 
-      <div className="flex gap-3">
-        <input className="border rounded px-3 py-2" placeholder="Search username" value={q} onChange={e=>setQ(e.target.value)} />
-        <select className="border rounded px-3 py-2" value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
-          <option value="">All roles</option><option>Teacher</option><option>Student</option><option>Admin</option><option>General</option>
-        </select>
-      </div>
-
-      <div className="bg-white border rounded-xl">
-        <div className="grid grid-cols-7 gap-3 p-3 text-sm font-medium bg-slate-50 border-b">
-          <div>Username</div><div>Email</div><div>Role</div><div>Phone</div><div>Active</div><div>Must change PW</div><div>Actions</div>
-        </div>
-        {rows?.length ? rows.map(u=>(
-          <div key={u.id} className="grid grid-cols-7 gap-3 p-3 text-sm border-b last:border-b-0">
-            <div>{u.username}</div><div>{u.email || "-"}</div><div>{u.role}</div>
-            <div>{u.phone || "-"}</div><div>{String(u.is_active)}</div><div>{String(u.must_change_password)}</div>
-            <div className="space-x-2">
-              <button className="px-2 py-1 border rounded" onClick={()=>resetPassword(u.id)}>Reset PW</button>
-            </div>
-          </div>
-        )) : <div className="p-4 text-sm text-slate-500">No users found.</div>}
+      {/* Users list with reset button */}
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className="px-4 py-2">Username</th>
+              <th className="px-4 py-2">Role</th>
+              <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Phone</th>
+              <th className="px-4 py-2">Active</th>
+              <th className="px-4 py-2">Must change PW</th>
+              <th className="px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u.id} className="border-t">
+                <td className="px-4 py-2">{u.username}</td>
+                <td className="px-4 py-2">{u.role}</td>
+                <td className="px-4 py-2">{u.email || "-"}</td>
+                <td className="px-4 py-2">{u.phone || "-"}</td>
+                <td className="px-4 py-2">{String(u.is_active)}</td>
+                <td className="px-4 py-2">{String(u.must_change_password)}</td>
+                <td className="px-4 py-2">
+                  <button
+                    onClick={() => handleResetPassword(u.id)}
+                    className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    Re-generate PW
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {!users.length && (
+              <tr><td className="px-4 py-6 text-slate-500" colSpan={7}>No users</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

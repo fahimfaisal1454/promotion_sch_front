@@ -1,29 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { toast, Toaster } from "react-hot-toast";
 import AxiosInstance from "../../../components/AxiosInstance";
 
 export default function TeacherInfo() {
+  const navigate = useNavigate();
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentTeacherId, setCurrentTeacherId] = useState(null);
-  const [currentSource, setCurrentSource] = useState(null); // 'manual' | 'approved'
 
-  // Raw buckets
-  const [manualTeachers, setManualTeachers] = useState([]);
-  const [approvedStaff, setApprovedStaff] = useState([]);
-
-  // Combined / filtered
+  // data
   const [teachers, setTeachers] = useState([]);
   const [filteredTeachers, setFilteredTeachers] = useState([]);
 
-  // Filters
+  // filters
   const [search, setSearch] = useState("");
   const [designationFilter, setDesignationFilter] = useState(null);
 
-  // Form
+  // form
   const blankForm = {
     full_name: "",
     designation: "",
@@ -35,35 +33,12 @@ export default function TeacherInfo() {
   };
   const [formData, setFormData] = useState(blankForm);
 
-  // ---------- Helpers ----------
-  const isApprovedUser = (u) => {
-    const raw = (u?.approved ?? u?.is_approved ?? u?.status ?? "").toString().toLowerCase();
-    if (!raw) return true;
-    return raw === "true" || raw === "approved" || raw === "active" || raw === "1" || raw === "yes";
-  };
+  // ---------- helpers ----------
+  const isLinked = (t) =>
+    Boolean(t?.user || t?.user_id || t?.user_username || t?.userId);
 
-  const normalizeApprovedToTeacher = (u) => ({
-    id: `appr-${u.id}`,
-    source: "approved",
-    full_name:
-      u.full_name ||
-      [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
-      u.username ||
-      "—",
-    designation:
-      (u.designation || (u.role ? u.role.toString() : "") || "Teacher")
-        .toString()
-        .toLowerCase(),
-    subject: u.subject || "-",
-    contact_email: u.email || "-",
-    contact_phone: u.phone || u.mobile || "-",
-    profile: u.profile || "",
-    photo: u.photo || u.avatar || u.profile_picture || null,
-  });
-
-  const normalizeManualTeacher = (t) => ({
-    id: `man-${t.id}`,
-    source: "manual",
+  const normalizeTeacher = (t) => ({
+    id: t.id,
     full_name: t.full_name || "-",
     designation: (t.designation || "").toString().toLowerCase(),
     subject: t.subject || "-",
@@ -71,58 +46,42 @@ export default function TeacherInfo() {
     contact_phone: t.contact_phone || "-",
     profile: t.profile || "",
     photo: t.photo || null,
+    // possible user fields coming from serializer
+    user: t.user ?? null,
+    user_id: t.user_id ?? null,
+    user_username: t.user_username ?? null,
   });
 
   const designationOptions = useMemo(() => {
     const set = new Set(
-      teachers.map((t) => (t.designation ? t.designation.toLowerCase() : "teacher"))
+      teachers.map((t) =>
+        t.designation ? t.designation.toLowerCase() : "teacher"
+      )
     );
     return Array.from(set).map((d) => ({ value: d, label: d }));
   }, [teachers]);
 
-  const stripPrefixId = (prefixedId) => {
-    if (!prefixedId) return null;
-    return prefixedId.replace(/^man-/, "").replace(/^appr-/, "");
-  };
-
-  // ---------- Load ----------
-  const loadAll = async () => {
+  // ---------- load ----------
+  const loadTeachers = async () => {
     setLoading(true);
     try {
-      // 1) Manual teachers
-      const manRes = await AxiosInstance.get("teachers/");
-      const manual = Array.isArray(manRes.data) ? manRes.data.map(normalizeManualTeacher) : [];
-
-      // 2) Approved staff (teachers only)
-      const apprRes = await AxiosInstance.get("approve_staff/");
-      const raw = Array.isArray(apprRes.data) ? apprRes.data : [];
-      const onlyApprovedTeachers = raw
-        .filter((u) => (u?.role || "").toString().toLowerCase() === "teacher")
-        .filter((u) => isApprovedUser(u))
-        .map(normalizeApprovedToTeacher);
-
-      setManualTeachers(manual);
-      setApprovedStaff(onlyApprovedTeachers);
-
-      const merged = [...onlyApprovedTeachers, ...manual].sort((a, b) =>
-        a.full_name.localeCompare(b.full_name)
-      );
-      setTeachers(merged);
-      setFilteredTeachers(merged);
+      const res = await AxiosInstance.get("teachers/");
+      const items = Array.isArray(res.data) ? res.data.map(normalizeTeacher) : [];
+      setTeachers(items);
+      setFilteredTeachers(items);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load teachers!");
+      toast.error("শিক্ষকের তালিকা লোড করা যায়নি!");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadTeachers();
   }, []);
 
-  // ---------- Filter ----------
+  // ---------- filter ----------
   useEffect(() => {
     let data = [...teachers];
 
@@ -139,7 +98,9 @@ export default function TeacherInfo() {
 
     if (designationFilter?.value) {
       const d = designationFilter.value.toLowerCase();
-      data = data.filter((t) => (t.designation || "").toLowerCase() === d);
+      data = data.filter(
+        (t) => (t.designation || "").toLowerCase() === d
+      );
     }
 
     setFilteredTeachers(data);
@@ -149,13 +110,11 @@ export default function TeacherInfo() {
   const openCreate = () => {
     setFormData(blankForm);
     setCurrentTeacherId(null);
-    setCurrentSource("manual");
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
   const openEdit = (row) => {
-    // ✅ allow editing for BOTH sources
     setFormData({
       full_name: row.full_name || "",
       designation: row.designation || "",
@@ -165,78 +124,65 @@ export default function TeacherInfo() {
       profile: row.profile || "",
       photo: null,
     });
-    setCurrentTeacherId(stripPrefixId(row.id)); // works for both man- and appr-
-    setCurrentSource(row.source); // 'manual' | 'approved'
+    setCurrentTeacherId(row.id);
     setIsEditing(true);
     setIsModalOpen(true);
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm("Delete this record?")) return;
+    if (!window.confirm("ডিলিট করতে চান?")) return;
     try {
-      if (row.source === "manual") {
-        await AxiosInstance.delete(`teachers/${stripPrefixId(row.id)}/`);
-      } else {
-        await AxiosInstance.delete(`approve_staff/${stripPrefixId(row.id)}/`);
-      }
-      toast.success("Deleted");
-      await loadAll();
+      await AxiosInstance.delete(`teachers/${row.id}/`);
+      toast.success("ডিলিট হয়েছে");
+      await loadTeachers();
     } catch (e) {
       console.error(e);
-      toast.error("Delete failed");
+      toast.error("ডিলিট ব্যর্থ");
     }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (!currentSource) throw new Error("Unknown source");
+      const payload = new FormData();
+      Object.entries(formData).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) payload.append(k, v);
+      });
 
-      if (currentSource === "manual") {
-        const payload = new FormData();
-        Object.entries(formData).forEach(([k, v]) => {
-          if (v !== null && v !== undefined) payload.append(k, v);
+      if (isEditing) {
+        await AxiosInstance.put(`teachers/${currentTeacherId}/`, payload, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
-
-        if (isEditing) {
-          await AxiosInstance.put(`teachers/${currentTeacherId}/`, payload, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          toast.success("Updated");
-        } else {
-          await AxiosInstance.post("teachers/", payload, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          toast.success("Created");
-        }
+        toast.success("আপডেট সম্পন্ন");
       } else {
-        // approved → PATCH approve_staff/:id/
-        // Use FormData so photo works; map to common field names for typical backends
-        const fd = new FormData();
-        if (formData.full_name) fd.append("username", formData.full_name);
-        if (formData.designation) fd.append("role", formData.designation);
-        if (formData.contact_email) fd.append("email", formData.contact_email);
-        if (formData.contact_phone) fd.append("phone", formData.contact_phone);
-        if (formData.subject) fd.append("subject", formData.subject);
-        if (formData.profile) fd.append("profile", formData.profile);
-        if (formData.photo) fd.append("profile_picture", formData.photo); // common field name
-
-        await AxiosInstance.patch(`approve_staff/${currentTeacherId}/`, fd);
-        toast.success("Updated");
+        await AxiosInstance.post("teachers/", payload, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("তৈরি হয়েছে");
       }
 
       setIsModalOpen(false);
       setFormData(blankForm);
-      await loadAll();
+      await loadTeachers();
     } catch (e) {
       console.error(e);
-      toast.error("Save failed");
+      toast.error("সংরক্ষণ ব্যর্থ");
     }
+  };
+
+  // ---------- jump to Users to create login ----------
+  const goCreateLogin = (t) => {
+    // Only allow if not linked yet
+    if (isLinked(t)) {
+      return toast("ইতিমধ্যে ইউজার লিংক করা আছে!", { icon: "ℹ️" });
+    }
+    navigate("/dashboard/users", { state: { teacherId: t.id } });
   };
 
   return (
     <div className="p-4">
       <Toaster />
+
       <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-2">
           <input
@@ -262,11 +208,10 @@ export default function TeacherInfo() {
             onClick={openCreate}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
           >
-            + Add Teacher (Manual)
+            + Add Teacher
           </button>
           <span className="text-sm text-gray-600">
-            Total: {filteredTeachers.length} &nbsp;|&nbsp; Approved:{" "}
-            {approvedStaff.length} &nbsp;|&nbsp; Manual: {manualTeachers.length}
+            Total: {filteredTeachers.length}
           </span>
         </div>
       </div>
@@ -282,21 +227,18 @@ export default function TeacherInfo() {
               <th className="px-3 py-2 text-left">বিষয়</th>
               <th className="px-3 py-2 text-left">ইমেইল</th>
               <th className="px-3 py-2 text-left">মোবাইল</th>
+              <th className="px-3 py-2 text-left">লগইন</th>
               <th className="px-3 py-2 text-left">অ্যাকশন</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-4" colSpan={8}>
-                  Loading…
-                </td>
+                <td className="px-3 py-4" colSpan={9}>Loading…</td>
               </tr>
             ) : filteredTeachers.length === 0 ? (
               <tr>
-                <td className="px-3 py-4" colSpan={8}>
-                  No data
-                </td>
+                <td className="px-3 py-4" colSpan={9}>No data</td>
               </tr>
             ) : (
               filteredTeachers.map((t, i) => (
@@ -315,39 +257,39 @@ export default function TeacherInfo() {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span>{t.full_name}</span>
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full ${
-                          t.source === "approved"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-emerald-100 text-emerald-700"
-                        }`}
-                        title={t.source === "approved" ? "Approved staff" : "Manually added"}
-                      >
-                        {t.source}
-                      </span>
-                    </div>
-                  </td>
+                  <td className="px-3 py-2">{t.full_name}</td>
                   <td className="px-3 py-2">{t.designation || "-"}</td>
                   <td className="px-3 py-2">{t.subject || "-"}</td>
                   <td className="px-3 py-2">{t.contact_email || "-"}</td>
                   <td className="px-3 py-2">{t.contact_phone || "-"}</td>
+
+                  {/* login cell */}
+                  <td className="px-3 py-2">
+                    {isLinked(t) ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                        linked
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => goCreateLogin(t)}
+                        className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        Create Login
+                      </button>
+                    )}
+                  </td>
+
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
-                      {/* ✅ enable Edit for BOTH sources */}
                       <button
                         onClick={() => openEdit(t)}
-                        className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
-                        title="Edit"
+                        className="px-3 py-1 rounded bg-slate-600 text-white hover:bg-slate-700"
                       >
                         এডিট
                       </button>
                       <button
                         onClick={() => handleDelete(t)}
                         className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
-                        title="Delete"
                       >
                         ডিলিট
                       </button>
@@ -360,7 +302,7 @@ export default function TeacherInfo() {
         </table>
       </div>
 
-      {/* Modal */}
+      {/* modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 grid place-items-center z-50">
           <div className="bg-white rounded-lg p-4 w-[95%] max-w-2xl">
@@ -373,39 +315,60 @@ export default function TeacherInfo() {
                   className="border rounded px-3 py-2"
                   placeholder="Full name"
                   value={formData.full_name}
-                  onChange={(e) => setFormData((s) => ({ ...s, full_name: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({ ...s, full_name: e.target.value }))
+                  }
                   required
                 />
                 <input
                   className="border rounded px-3 py-2"
                   placeholder="Designation (e.g., teacher)"
                   value={formData.designation}
-                  onChange={(e) => setFormData((s) => ({ ...s, designation: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({ ...s, designation: e.target.value }))
+                  }
                 />
                 <input
                   className="border rounded px-3 py-2"
                   placeholder="Subject (e.g., maths)"
                   value={formData.subject}
-                  onChange={(e) => setFormData((s) => ({ ...s, subject: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({ ...s, subject: e.target.value }))
+                  }
                 />
                 <input
                   className="border rounded px-3 py-2"
                   placeholder="Email"
                   type="email"
                   value={formData.contact_email}
-                  onChange={(e) => setFormData((s) => ({ ...s, contact_email: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({
+                      ...s,
+                      contact_email: e.target.value,
+                    }))
+                  }
                 />
                 <input
                   className="border rounded px-3 py-2"
                   placeholder="Phone"
                   value={formData.contact_phone}
-                  onChange={(e) => setFormData((s) => ({ ...s, contact_phone: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({
+                      ...s,
+                      contact_phone: e.target.value,
+                    }))
+                  }
                 />
                 <input
                   className="border rounded px-3 py-2"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFormData((s) => ({ ...s, photo: e.target.files?.[0] || null }))}
+                  onChange={(e) =>
+                    setFormData((s) => ({
+                      ...s,
+                      photo: e.target.files?.[0] || null,
+                    }))
+                  }
                 />
               </div>
               <textarea
@@ -413,7 +376,9 @@ export default function TeacherInfo() {
                 placeholder="Profile"
                 rows={4}
                 value={formData.profile}
-                onChange={(e) => setFormData((s) => ({ ...s, profile: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((s) => ({ ...s, profile: e.target.value }))
+                }
               />
               <div className="flex justify-end gap-2 pt-2">
                 <button

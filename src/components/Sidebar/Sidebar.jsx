@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+// client/src/components/Sidebar.jsx
+import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { IoIosLogOut } from "react-icons/io";
 import { AiFillHome } from "react-icons/ai";
-import { MdSettings, MdExpandMore, MdExpandLess } from "react-icons/md";
+import { MdSettings, MdExpandMore, MdExpandLess, MdClass, MdLibraryBooks } from "react-icons/md";
 import { PiBuildingsDuotone } from "react-icons/pi";
 import { FiPhone } from "react-icons/fi";
 import { FaImages, FaUserTie, FaUserGraduate } from "react-icons/fa6";
@@ -15,32 +16,31 @@ import AxiosInstance from "../AxiosInstance";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [siteMenuOpen, setSiteMenuOpen] = useState(false);
-  const [defaultMenuOpen, setDefaultMenuOpen] = useState(false);
+  const [openId, setOpenId] = useState(null); // "site" | "default" | "academic" | null
   const [institutionInfo, setInstitutionInfo] = useState(null);
 
-  const toggleSidebar = () => setCollapsed(!collapsed);
   const { signOut } = useUser();
+  const toggleSidebar = () => setCollapsed((s) => !s);
+  const toggle = (id) => setOpenId((prev) => (prev === id ? null : id));
 
   const handleLogout = () => {
     signOut();
     window.location.href = "/login";
   };
 
-  const fetchInstitutionInfo = async () => {
-    try {
-      const res = await AxiosInstance.get("institutions/");
-      if (res.data.length > 0) setInstitutionInfo(res.data[0]);
-    } catch (error) {
-      console.error("Error fetching institution info:", error);
-    }
-  };
-
   useEffect(() => {
+    const fetchInstitutionInfo = async () => {
+      try {
+        const res = await AxiosInstance.get("institutions/");
+        if (Array.isArray(res.data) && res.data.length > 0) setInstitutionInfo(res.data[0]);
+      } catch (error) {
+        console.error("Error fetching institution info:", error);
+      }
+    };
     fetchInstitutionInfo();
   }, []);
 
-  // ✅ Default: white text; Active: black text; Hover: yellow bg, text stays white
+  // Default: white text; Active: black text; Hover: yellow bg, text stays white
   const navLinkStyle = ({ isActive }) =>
     `flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
      ${isActive ? "bg-[#d8f999] text-black" : "hover:bg-[#e2b42b] text-white hover:text-white"}
@@ -76,141 +76,141 @@ export default function Sidebar() {
 
       {/* Middle */}
       <div className="flex-grow px-2 overflow-auto space-y-1">
-        {/* Site Config */}
+        {/* Site Configuration */}
         <div>
           <button
-            onClick={() => setSiteMenuOpen(!siteMenuOpen)}
+            onClick={() => toggle("site")}
             className="flex gap-3 w-full px-3 py-2 text-white rounded-md hover:bg-[#e2b42b] hover:text-white"
-            title="সাইট কনফিগারেশন"
+            title="Site configuration"
           >
             <MdSettings className="text-xl" />
-            {!collapsed && <span>সাইট কনফিগারেশন</span>}
+            {!collapsed && <span>Site Configuration</span>}
             {!collapsed && (
-              <span className="ml-auto">
-                {siteMenuOpen ? <MdExpandLess /> : <MdExpandMore />}
-              </span>
+              <span className="ml-auto">{openId === "site" ? <MdExpandLess /> : <MdExpandMore />}</span>
             )}
           </button>
 
           <div
             className={`transition-all duration-300 overflow-hidden ${
-              siteMenuOpen ? "max-h-[500px]" : "max-h-0"
+              openId === "site" ? "max-h-[600px]" : "max-h-0"
             } ${collapsed ? "pl-0" : "pl-4"}`}
           >
             <NavLink to="/dashboard/college-info" className={navLinkStyle}>
               <PiBuildingsDuotone className="text-lg" />
-              {!collapsed && "প্রতিষ্ঠানের তথ্য"}
+              {!collapsed && "Institution Info"}
             </NavLink>
             <NavLink to="/dashboard/contact-info" className={navLinkStyle}>
               <FiPhone className="text-lg" />
-              {!collapsed && "যোগাযোগ"}
+              {!collapsed && "Contacts"}
             </NavLink>
             <NavLink to="/dashboard/principal-info" className={navLinkStyle}>
               <FaUserTie className="text-lg" />
-              {!collapsed && "প্রধান শিক্ষক/সহকারি প্রধান শিক্ষক"}
+              {!collapsed && "Principal / Vice Principal"}
             </NavLink>
             <NavLink to="/dashboard/committee-member" className={navLinkStyle}>
               <FaUserTie className="text-lg" />
-              {!collapsed && "কমিটি সদস্য"}
+              {!collapsed && "Committee Members"}
             </NavLink>
             <NavLink to="/dashboard/gallery-upload" className={navLinkStyle}>
               <FaImages className="text-lg" />
-              {!collapsed && "গ্যালারি ছবি"}
+              {!collapsed && "Gallery"}
             </NavLink>
             <NavLink to="/dashboard/add-acknowledgement" className={navLinkStyle}>
               <FaImages className="text-lg" />
-              {!collapsed && "স্বীকৃতি পত্র যোগ করুন"}
+              {!collapsed && "Acknowledgement"}
             </NavLink>
-            <NavLink to="/dashboard/add-class" className={navLinkStyle}>
-              <FaImages className="text-lg" />
-              {!collapsed && "শ্রেণি যোগ করুন"}
-            </NavLink>
-            <NavLink to="/dashboard/add-subject" className={navLinkStyle}>
-              <FaImages className="text-lg" />
-              {!collapsed && "বিষয় যোগ করুন"}
-            </NavLink>
+            {/* NOTE: "Add Class" and "Add Subject" moved to Academic */}
           </div>
         </div>
 
         {/* Notice */}
         <NavLink to="/dashboard/notices" className={navLinkStyle}>
           <BsClipboardData className="text-lg" />
-          {!collapsed && "নোটিশ"}
+          {!collapsed && "Notices"}
         </NavLink>
 
-        {/* Default */}
+        {/* Default (People) */}
         <div>
           <button
-            onClick={() => setDefaultMenuOpen(!defaultMenuOpen)}
+            onClick={() => toggle("default")}
             className="flex gap-3 w-full px-3 py-2 text-white rounded-md hover:bg-[#e2b42b] hover:text-white"
-            title="ডিফল্ট"
+            title="Default"
           >
             <MdSettings className="text-xl" />
-            {!collapsed && <span>ডিফল্ট</span>}
+            {!collapsed && <span>Default</span>}
             {!collapsed && (
               <span className="ml-auto">
-                {defaultMenuOpen ? <MdExpandLess /> : <MdExpandMore />}
+                {openId === "default" ? <MdExpandLess /> : <MdExpandMore />}
               </span>
             )}
           </button>
 
           <div
             className={`transition-all duration-300 overflow-hidden ${
-              defaultMenuOpen ? "max-h-[500px]" : "max-h-0"
+              openId === "default" ? "max-h-[600px]" : "max-h-0"
             } ${collapsed ? "pl-0" : "pl-4"}`}
           >
             <NavLink to="/dashboard/student-info-form" className={navLinkStyle}>
               <FaUserGraduate className="text-lg" />
-              {!collapsed && "শিক্ষার্থীর তথ্য "}
+              {!collapsed && "Student Info"}
             </NavLink>
             <NavLink to="/dashboard/teacher-info-form" className={navLinkStyle}>
               <FaChalkboardTeacher className="text-lg" />
-              {!collapsed && "শিক্ষকের তথ্য"}
+              {!collapsed && "Teacher Info"}
             </NavLink>
             <NavLink to="/dashboard/staff-info-form" className={navLinkStyle}>
               <RiTeamFill className="text-lg" />
-              {!collapsed && "কর্মচারীর তথ্য"}
+              {!collapsed && "Staff Info"}
             </NavLink>
             <NavLink to="/dashboard/users" className={navLinkStyle}>
-  <RiTeamFill className="text-lg" />
-  {!collapsed && "ব্যবহারকারী (Users)"}
-</NavLink>
-
-            <NavLink to="/dashboard/teacher-approvals" className={navLinkStyle}>
-  <FaChalkboardTeacher className="text-lg" />
-  {!collapsed && "শিক্ষক অনুমোদন"}
-</NavLink>
+              <RiTeamFill className="text-lg" />
+              {!collapsed && "Users"}
+            </NavLink>
           </div>
         </div>
 
         {/* Academic */}
         <div>
           <button
-            onClick={() => setDefaultMenuOpen(!defaultMenuOpen)}
+            onClick={() => toggle("academic")}
             className="flex gap-3 w-full px-3 py-2 text-white rounded-md hover:bg-[#e2b42b] hover:text-white"
-            title="একাডেমিক"
+            title="Academic"
           >
             <FaUniversity className="text-xl" />
-            {!collapsed && <span>একাডেমিক</span>}
+            {!collapsed && <span>Academic</span>}
             {!collapsed && (
               <span className="ml-auto">
-                {defaultMenuOpen ? <MdExpandLess /> : <MdExpandMore />}
+                {openId === "academic" ? <MdExpandLess /> : <MdExpandMore />}
               </span>
             )}
           </button>
 
           <div
-            className={`transition-all duration-300 overflow-hidden ${
-              defaultMenuOpen ? "max-h-[500px]" : "max-h-0"
-            } ${collapsed ? "pl-0" : "pl-4"}`}
+            className={`transition-all duration-300 overflow-hidden ${openId === "academic" ? "max-h-[600px]" : "max-h-0"
+              } ${collapsed ? "pl-0" : "pl-4"}`}
           >
-            <NavLink to="/dashboard/class-routine" className={navLinkStyle}>
+            {/* ✅ Moved here */}
+            <NavLink to="/dashboard/add-section" className={navLinkStyle}>
+              <MdClass className="text-lg" />
+              {!collapsed && "Add Section"}
+            </NavLink>
+            <NavLink to="/dashboard/add-class" className={navLinkStyle}>
+              <MdClass className="text-lg" />
+              {!collapsed && "Add Class"}
+            </NavLink>
+            <NavLink to="/dashboard/add-subject" className={navLinkStyle}>
+              <MdLibraryBooks className="text-lg" />
+              {!collapsed && "Add Subject"}
+            </NavLink>
+
+            {/* Existing academic items */}
+            <NavLink to="/dashboard/class-routines" className={navLinkStyle}>
               <FaRegCalendarAlt className="text-lg" />
-              {!collapsed && "ক্লাস রুটিন "}
+              {!collapsed && "Class Routine"}
             </NavLink>
             <NavLink to="/dashboard/add-result" className={navLinkStyle}>
               <FaRegCalendarAlt className="text-lg" />
-              {!collapsed && "ফলাফল যোগ করুন"}
+              {!collapsed && "Add Result"}
             </NavLink>
           </div>
         </div>
@@ -220,18 +220,18 @@ export default function Sidebar() {
       <div className="px-2 py-4 border-t border-purple-700">
         <NavLink to="/" className={navLinkStyle}>
           <AiFillHome className="text-lg" />
-          {!collapsed && "হোম"}
+          {!collapsed && "Home"}
         </NavLink>
 
         <button
           className={`flex items-center gap-2 px-3 py-2 w-full rounded-md text-white hover:bg-[#e2b42b] hover:text-white transition-all duration-200 ${
             collapsed ? "justify-center" : ""
           }`}
-          title="লগআউট"
+          title="Logout"
           onClick={handleLogout}
         >
           <IoIosLogOut className="text-lg" />
-          {!collapsed && <span>লগআউট</span>}
+          {!collapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>

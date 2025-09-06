@@ -26,20 +26,21 @@ import Result from "./pages/Academic/Result.jsx";
 import Dashboard from "../src/Layout/Dashboard.jsx";
 import AddNotice from "./pages/DashboardPages/Notice/Notice.jsx";
 import GalleryUpload from "./pages/DashboardPages/Master/GalleryUpload.jsx";
-import AddClass from "./pages/DashboardPages/Master/AddClass.jsx";
+import AddClass from "./pages/DashboardPages/academics/AddClass.jsx";
 import CollegeInfo from "../src/pages/DashboardPages/Master/CollegeInfo.jsx";
 import PrincipalForms from "./pages/DashboardPages/Master/PrincipalForms.jsx";
-import AddSubject from "./pages/DashboardPages/Master/AddSubject.jsx";
+import AddSubject from "./pages/DashboardPages/academics/AddSubject.jsx";
 import StaffInfo from "./pages/DashboardPages/Default/StaffInfo.jsx";
 import TeacherInfo from "./pages/DashboardPages/Default/TeacherInfo.jsx";
 import StudentInfo from "./pages/DashboardPages/Default/StudentInfo.jsx";
-import ClassRoutine from "./pages/DashboardPages/academics/ClassRoutine.jsx";
 import CommitteeMember from "./pages/DashboardPages/Master/CommitteeMember.jsx";
 import ContactList from "./pages/DashboardPages/Master/ContactList.jsx";
 import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgment.jsx";
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
-import TeacherApprovals from "./pages/DashboardPages/Default/TeacherApprovals.jsx";
 import ManageUsers from "./pages/Admin/ManageUsers.jsx";
+import ClassRoutineForm from "./pages/DashboardPages/academics/ClassRoutineForm.jsx";
+import ClassRoutineList from "./pages/DashboardPages/academics/ClassRoutineList.jsx";
+import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
@@ -127,17 +128,16 @@ const router = createBrowserRouter([
       { path: "student-info-form", element: <StudentInfo /> },
       { path: "teacher-info-form", element: <TeacherInfo /> },
       { path: "staff-info-form", element: <StaffInfo /> },
-      { path: "class-routine", element: <ClassRoutine /> },
       { path: "add-class", element: <AddClass /> },
       { path: "add-subject", element: <AddSubject /> },
       { path: "committee-member", element: <CommitteeMember /> },
       { path: "add-acknowledgement", element: <AdminAcknowledgment /> },
       { path: "add-result", element: <ResultManager /> },
-      {
-        path: "teacher-approvals",
-        element: <TeacherApprovals />,
-      },
       { path: "users", element: <ManageUsers /> },
+      { path: "class-routines", element: <ClassRoutineList /> },
+      { path: "class-routines/new", element: <ClassRoutineForm /> },
+      + { path: "class-routine/:id/edit", element: <ClassRoutineForm /> },
+      { path: "add-section", element: <AddSection /> },
     ],
   },
 
