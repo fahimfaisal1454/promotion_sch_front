@@ -190,6 +190,10 @@ export default function Sidebar() {
               } ${collapsed ? "pl-0" : "pl-4"}`}
           >
             {/* ✅ Moved here */}
+            <NavLink to="/dashboard/class-timetable" className={navLinkStyle}>
+              <MdLibraryBooks className="text-lg" />
+              {!collapsed && "Class Timetable"}
+            </NavLink>
             <NavLink to="/dashboard/add-section" className={navLinkStyle}>
               <MdClass className="text-lg" />
               {!collapsed && "Add Section"}

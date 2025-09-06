@@ -42,6 +42,7 @@ import ClassRoutineForm from "./pages/DashboardPages/academics/ClassRoutineForm.
 import ClassRoutineList from "./pages/DashboardPages/academics/ClassRoutineList.jsx";
 import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 import AssignedSubjects from "./pages/DashboardPages/Academics/AssignedSubjects.jsx";
+import ClassTimetable from "./pages/DashboardPages/academics/ClassTimetable.jsx"
 
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
@@ -140,6 +141,7 @@ const router = createBrowserRouter([
       + { path: "class-routine/:id/edit", element: <ClassRoutineForm /> },
       { path: "add-section", element: <AddSection /> },
       { path: "assigned-subjects", element: <AssignedSubjects /> },
+      { path: "class-timetable", element: <ClassTimetable /> },
     ],
   },
 
