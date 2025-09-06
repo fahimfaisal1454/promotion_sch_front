@@ -1,3 +1,4 @@
+// ClassTimetable.jsx
 import { useEffect, useMemo, useState } from "react";
 import Select from "react-select";
 import { Toaster, toast } from "react-hot-toast";
@@ -12,6 +13,7 @@ const DAYS = [
   { value: "Sat", label: "Saturday" },
   { value: "Sun", label: "Sunday" },
 ];
+const DAY_ORDER = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
 
 export default function ClassTimetable() {
   // master data
@@ -23,8 +25,8 @@ export default function ClassTimetable() {
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
 
-  // day rows
-  const blankDayRows = useMemo(
+  // input rows (per day)
+  const blankRows = useMemo(
     () =>
       DAYS.map((d) => ({
         day_of_week: d.value,
@@ -34,9 +36,9 @@ export default function ClassTimetable() {
       })),
     []
   );
-  const [rows, setRows] = useState(blankDayRows);
+  const [rows, setRows] = useState(blankRows);
 
-  // existing routines
+  // list
   const [loadingList, setLoadingList] = useState(false);
   const [routines, setRoutines] = useState([]);
 
@@ -44,14 +46,14 @@ export default function ClassTimetable() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);
 
-  // ---------------- load basics ----------------
+  // ---------- API helpers ----------
   const loadClasses = async () => {
     try {
       let res;
       try {
-        res = await AxiosInstance.get("class-names/"); // preferred
+        res = await AxiosInstance.get("class-names/");
       } catch {
-        res = await AxiosInstance.get("classes/"); // fallback
+        res = await AxiosInstance.get("classes/"); // fallback if you had old endpoint
       }
       setClasses(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
@@ -64,13 +66,9 @@ export default function ClassTimetable() {
     try {
       let res;
       try {
-        res = await AxiosInstance.get(`subjects/?class_id=${classId}`); // preferred
+        res = await AxiosInstance.get(`subjects/?class_id=${classId}`);
       } catch {
-        try {
-          res = await AxiosInstance.get(`subjects/?class=${classId}`); // fallback
-        } catch {
-          res = await AxiosInstance.get("subjects/"); // last resort
-        }
+        res = await AxiosInstance.get("subjects/");
       }
       setSubjects(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
@@ -80,26 +78,14 @@ export default function ClassTimetable() {
   };
 
   const serverLoadRoutines = async () => {
-    // try server-side filters first
     const q = new URLSearchParams();
     if (selectedClass?.value) q.append("class_id", selectedClass.value);
-    if (selectedSection?.value) q.append("section", selectedSection.value);
+    if (selectedSection?.value) q.append("section_id", selectedSection.value);
     if (selectedSubject?.value) q.append("subject_id", selectedSubject.value);
 
-    try {
-      const res = await AxiosInstance.get(
-        `class-routines/${q.toString() ? "?" + q.toString() : ""}`
-      );
-      return Array.isArray(res.data) ? res.data : [];
-    } catch {
-      // endpoint exists but may not support filters
-      try {
-        const res = await AxiosInstance.get("timetable/");
-        return Array.isArray(res.data) ? res.data : [];
-      } catch (e) {
-        throw e;
-      }
-    }
+    const url = `timetable/${q.toString() ? `?${q.toString()}` : ""}`;
+    const res = await AxiosInstance.get(url);
+    return Array.isArray(res.data) ? res.data : [];
   };
 
   const loadRoutines = async () => {
@@ -110,29 +96,13 @@ export default function ClassTimetable() {
     setLoadingList(true);
     try {
       let data = await serverLoadRoutines();
-
-      // client-side filter (covers backends without query filters)
-      data = data.filter((r) => r.class_name === selectedClass.value);
-      if (selectedSection?.value) {
-        data = data.filter(
-          (r) =>
-            (r.section || "").toLowerCase() ===
-            selectedSection.value.toLowerCase()
-        );
-      }
-      if (selectedSubject?.value) {
-        data = data.filter((r) => r.subject === selectedSubject.value);
-      }
-
-      // order by day then time
-      const dayOrder = Object.fromEntries(DAYS.map((d, i) => [d.value, i]));
+      // sort by day then time
       data.sort((a, b) => {
-        const da = dayOrder[a.day_of_week] ?? 0;
-        const db = dayOrder[b.day_of_week] ?? 0;
+        const da = DAY_ORDER[a.day_of_week] ?? 0;
+        const db = DAY_ORDER[b.day_of_week] ?? 0;
         if (da !== db) return da - db;
         return String(a.start_time).localeCompare(String(b.start_time));
       });
-
       setRoutines(data);
     } catch (e) {
       console.error(e);
@@ -142,26 +112,7 @@ export default function ClassTimetable() {
     }
   };
 
-  useEffect(() => {
-    loadClasses();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClass?.value) {
-      loadSubjects(selectedClass.value);
-    } else {
-      setSubjects([]);
-    }
-    setSelectedSection(null);
-    setSelectedSubject(null);
-    setRows(blankDayRows);
-  }, [selectedClass, blankDayRows]);
-
-  useEffect(() => {
-    loadRoutines();
-  }, [selectedClass, selectedSection, selectedSubject]);
-
-  // ---------------- options ----------------
+  // ---------- options ----------
   const classOptions = useMemo(
     () =>
       classes.map((c) => ({
@@ -175,26 +126,16 @@ export default function ClassTimetable() {
   const sectionOptions = useMemo(() => {
     if (!selectedClass) return [];
     const cls = classes.find((x) => x.id === selectedClass.value);
-    // accept Section objects or plain strings
-    return (cls?.sections || []).map((s) =>
-      typeof s === "string"
-        ? { value: s, label: s }
-        : { value: s.name || s.code, label: s.name || s.code }
-    );
+    // sections must be IDs (backend expects PK)
+    return (cls?.sections || []).map((s) => ({ value: s.id, label: s.name }));
   }, [classes, selectedClass]);
 
   const subjectOptions = useMemo(
-    () =>
-      (subjects || []).map((s) => ({
-        value: s.id,
-        label:
-          s.name +
-          (s.is_practical ? " (Practical)" : s.is_theory ? " (Theory)" : ""),
-      })),
+    () => (subjects || []).map((s) => ({ value: s.id, label: s.name })),
     [subjects]
   );
 
-  // ---------------- handlers ----------------
+  // ---------- handlers ----------
   const updateRow = (i, key, val) => {
     setRows((prev) => {
       const next = [...prev];
@@ -215,7 +156,7 @@ export default function ClassTimetable() {
     );
   };
 
-  const clearAll = () => setRows(blankDayRows);
+  const clearAll = () => setRows(blankRows);
 
   const createMany = async () => {
     if (!selectedClass?.value) return toast.error("Select class");
@@ -223,14 +164,13 @@ export default function ClassTimetable() {
     if (!selectedSubject?.value) return toast.error("Select subject");
 
     const payloads = rows
-      .filter((r) => r.start_time && r.end_time)
+      .filter((r) => r.start_time && r.end_time) // only filled days
       .map((r) => ({
-        // DRF accepts FK IDs directly for FK fields
-        class_name: selectedClass.value,
-        section: selectedSection.value, // CharField in backend
-        subject: selectedSubject.value,
-        day_of_week: r.day_of_week,
-        period: r.period || "",
+        class_name: selectedClass.value,      // FK id
+        section: selectedSection.value,       // FK id
+        subject: selectedSubject.value,       // FK id
+        day_of_week: r.day_of_week,           // "Mon".."Sun"
+        period: r.period || "",               // free text
         start_time: r.start_time,
         end_time: r.end_time,
       }));
@@ -238,8 +178,7 @@ export default function ClassTimetable() {
     if (payloads.length === 0) return toast("Nothing to save.");
 
     try {
-await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
-      
+      await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
       toast.success("Timetable saved");
       await loadRoutines();
     } catch (e) {
@@ -254,12 +193,12 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
     }
   };
 
-  const openEdit = (r) => {
+  const openEdit = (row) => {
     setEditRow({
-      ...r,
-      _period: r.period || "",
-      _start: r.start_time || "",
-      _end: r.end_time || "",
+      ...row,
+      _period: row.period || "",
+      _start: row.start_time || "",
+      _end: row.end_time || "",
     });
     setEditOpen(true);
   };
@@ -267,12 +206,13 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
   const submitEdit = async () => {
     try {
       const body = {
+        day_of_week: editRow.day_of_week,
         period: editRow._period,
         start_time: editRow._start,
         end_time: editRow._end,
-        day_of_week: editRow.day_of_week,
       };
-      await AxiosInstance.put(`timetable/${editRow.id}/`, body);
+      // use PATCH to avoid resending FKs
+      await AxiosInstance.patch(`timetable/${editRow.id}/`, body);
       toast.success("Updated");
       setEditOpen(false);
       setEditRow(null);
@@ -301,7 +241,27 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
     }
   };
 
-  // ---------------- UI ----------------
+  // ---------- effects ----------
+  useEffect(() => {
+    loadClasses();
+  }, []);
+
+  useEffect(() => {
+    if (selectedClass?.value) {
+      loadSubjects(selectedClass.value);
+    } else {
+      setSubjects([]);
+    }
+    setSelectedSection(null);
+    setSelectedSubject(null);
+    setRows(blankRows);
+  }, [selectedClass, blankRows]);
+
+  useEffect(() => {
+    loadRoutines();
+  }, [selectedClass, selectedSection, selectedSubject]);
+
+  // ---------- UI ----------
   return (
     <div className="p-4">
       <Toaster position="top-center" />
@@ -319,7 +279,7 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
         </div>
         <div>
           <label className="block text-sm mb-1">Section</label>
-        <Select
+          <Select
             options={sectionOptions}
             value={selectedSection}
             onChange={setSelectedSection}
@@ -358,8 +318,8 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
               <tr>
                 <th className="px-3 py-2 text-left">Day</th>
                 <th className="px-3 py-2 text-left w-40">Period</th>
-                <th className="px-3 py-2 text-left w-40">Start Time</th>
-                <th className="px-3 py-2 text-left w-40">End Time</th>
+                <th className="px-3 py-2 text-left w-40">Start</th>
+                <th className="px-3 py-2 text-left w-40">End</th>
               </tr>
             </thead>
             <tbody>
@@ -413,9 +373,7 @@ await Promise.all(payloads.map((p) => AxiosInstance.post("timetable/", p)));
         <h3 className="text-lg font-semibold mb-3">
           Current Rows{" "}
           {selectedClass
-            ? `— ${selectedClass.label}${
-                selectedSection ? " • " + selectedSection.label : ""
-              }`
+            ? `— ${selectedClass.label}${selectedSection ? " • " + selectedSection.label : ""}`
             : ""}
         </h3>
 
