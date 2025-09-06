@@ -202,6 +202,10 @@ export default function Sidebar() {
               <MdLibraryBooks className="text-lg" />
               {!collapsed && "Add Subject"}
             </NavLink>
+            <NavLink to="/dashboard/assigned-subjects" className={navLinkStyle}>
+              <MdLibraryBooks className="text-lg" />
+              {!collapsed && "Assign Subject"}
+            </NavLink>
 
             {/* Existing academic items */}
             <NavLink to="/dashboard/class-routines" className={navLinkStyle}>
