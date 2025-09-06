@@ -102,7 +102,7 @@ export default function AssignedSubjects() {
       };
       const res = await AxiosInstance.post("class-subjects/bulk-assign/", payload);
       toast.success(
-        `Assigned: ${res.data?.created ?? 0}, Skipped: ${res.data?.skipped_existing ?? 0}`
+        `Assigned: ${res.data?.created ?? 0},`
       );
       await loadAssignments(selectedClass.value);
       setSelectedSections([]);
