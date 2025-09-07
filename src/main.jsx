@@ -38,12 +38,12 @@ import ContactList from "./pages/DashboardPages/Master/ContactList.jsx";
 import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgment.jsx";
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
 import ManageUsers from "./pages/Admin/ManageUsers.jsx";
-import ClassRoutineForm from "./pages/DashboardPages/academics/ClassRoutineForm.jsx";
-import ClassRoutineList from "./pages/DashboardPages/academics/ClassRoutineList.jsx";
+
 import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 import AssignedSubjects from "./pages/DashboardPages/Academics/AssignedSubjects.jsx";
 import ClassTimetable from "./pages/DashboardPages/academics/ClassTimetable.jsx"
-
+import AssignTeacherForm from "./pages/DashboardPages/academics/AssignTeacherForm.jsx";
+import AssignTeacherList from "./pages/DashboardPages/academics/AssignTeacherList.jsx";
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
 import TeacherDashboard from "./pages/Teachers/Dashboard.jsx";
@@ -54,6 +54,7 @@ import Assignments from "./pages/Teachers/Assignments.jsx";
 import Reports from "./pages/Teachers/Reports.jsx";
 import TeacherNotices from "./pages/Teachers/Notices.jsx";
 import MyStudents from "./pages/Teachers/MyStudents.jsx";
+
 
 // Define the router
 const router = createBrowserRouter([
@@ -136,12 +137,13 @@ const router = createBrowserRouter([
       { path: "add-acknowledgement", element: <AdminAcknowledgment /> },
       { path: "add-result", element: <ResultManager /> },
       { path: "users", element: <ManageUsers /> },
-      { path: "class-routines", element: <ClassRoutineList /> },
-      { path: "class-routines/new", element: <ClassRoutineForm /> },
-      + { path: "class-routine/:id/edit", element: <ClassRoutineForm /> },
+    
+
       { path: "add-section", element: <AddSection /> },
       { path: "assigned-subjects", element: <AssignedSubjects /> },
       { path: "class-timetable", element: <ClassTimetable /> },
+      { path: "assigned-teacher-form", element: <AssignTeacherForm /> },
+      { path: "assigned-teacher-list", element: <AssignTeacherList /> },
     ],
   },
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../../components/AxiosInstance";
 
-export default function ClassRoutineList() {
+export default function AssignTeacherList() {
   const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
@@ -19,12 +19,23 @@ export default function ClassRoutineList() {
   const load = async () => {
     setLoading(true);
     try {
-      const [routines, teachersRes] = await Promise.all([
-        AxiosInstance.get("class-routines/").then(r => r.data || []),
-        AxiosInstance.get("admin/users/?role=Teacher").then(r => r.data || []),
+      const [assignments, teachersRes] = await Promise.all([
+        AxiosInstance.get("assign-teachers/").then((r) => r.data || []),
+        AxiosInstance.get("teachers/").then((r) => r.data || []), // Teacher Info
       ]);
-      setRows(routines);
-      setTeachers(teachersRes);
+      setRows(assignments);
+      // normalize teacher labels for the filter dropdown
+      const tOpts = (Array.isArray(teachersRes) ? teachersRes : []).map((t) => ({
+        id: t.id,
+        label:
+          t.full_name ||
+          t.contact_email ||
+          t.user_username ||
+          t.username ||
+          t.email ||
+          `Teacher #${t.id}`,
+      }));
+      setTeachers(tOpts);
     } finally {
       setLoading(false);
     }
@@ -34,45 +45,59 @@ export default function ClassRoutineList() {
     load().catch(console.error);
   }, []);
 
-  const onFilter = (k, v) => setFilters(prev => ({ ...prev, [k]: v }));
+  const onFilter = (k, v) => setFilters((prev) => ({ ...prev, [k]: v }));
 
   const filtered = useMemo(() => {
-    let data = [...rows];
-    if (filters.day) data = data.filter(r => (r.day_of_week || "").toLowerCase() === filters.day.toLowerCase());
+    let data = Array.isArray(rows) ? [...rows] : [];
+
+    if (filters.day) {
+      data = data.filter(
+        (r) =>
+          (r.day_of_week || "").toLowerCase() === filters.day.toLowerCase()
+      );
+    }
     if (filters.className) {
-      data = data.filter(r => {
-        const name = r.class_name?.name || r.class_name || "";
+      data = data.filter((r) => {
+        const name =
+          r.class_name?.name || r.class_name?.title || r.class_name || "";
         return name.toLowerCase().includes(filters.className.toLowerCase());
       });
     }
     if (filters.section) {
-      data = data.filter(r => (r.section || "").toLowerCase() === filters.section.toLowerCase());
+      const secFilter = filters.section.toLowerCase();
+      data = data.filter((r) => {
+        const sec =
+          r.section?.name ||
+          r.section?.code ||
+          r.section?.label ||
+          r.section ||
+          "";
+        return String(sec).toLowerCase() === secFilter;
+      });
     }
     if (filters.teacherId) {
-      data = data.filter(r => String(r.teacher?.id || r.teacher) === String(filters.teacherId));
+      data = data.filter(
+        (r) => String(r.teacher?.id || r.teacher) === String(filters.teacherId)
+      );
     }
     return data;
   }, [rows, filters]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this period?")) return;
-    await AxiosInstance.delete(`class-routines/${id}/`);
-    setRows(prev => prev.filter(r => r.id !== id));
+    if (!window.confirm("Delete this assignment?")) return;
+    await AxiosInstance.delete(`assign-teachers/${id}/`);
+    setRows((prev) => prev.filter((r) => r.id !== id));
   };
-
-  const teacherOptions = useMemo(() => teachers.map(t => ({
-    id: t.id, label: t.username || `User #${t.id}`
-  })), [teachers]);
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Class Routine</h2>
+        <h2 className="text-xl font-semibold">Assigned Teachers</h2>
         <button
-          onClick={() => navigate("/dashboard/class-routines/new")}
+          onClick={() => navigate("/dashboard/assigned-teacher-form")}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
         >
-          + Add Period
+          + Assign Teacher
         </button>
       </div>
 
@@ -86,7 +111,9 @@ export default function ClassRoutineList() {
             onChange={(e) => onFilter("day", e.target.value)}
           >
             <option value="">All</option>
-            {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => <option key={d}>{d}</option>)}
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              <option key={d}>{d}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -115,8 +142,10 @@ export default function ClassRoutineList() {
             onChange={(e) => onFilter("teacherId", e.target.value)}
           >
             <option value="">All</option>
-            {teacherOptions.map(t => (
-              <option key={t.id} value={t.id}>{t.label}</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
             ))}
           </select>
         </div>
@@ -133,30 +162,52 @@ export default function ClassRoutineList() {
               <th className="px-3 py-2">Subject</th>
               <th className="px-3 py-2">Teacher</th>
               <th className="px-3 py-2">Period</th>
-              <th className="px-3 py-2">Time</th>
+              <th className="px-3 py-2">Room</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-3 py-4" colSpan={8}>Loading…</td></tr>
+              <tr>
+                <td className="px-3 py-4" colSpan={8}>
+                  Loading…
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
-              <tr><td className="px-3 py-6 text-slate-500" colSpan={8}>No periods</td></tr>
+              <tr>
+                <td className="px-3 py-6 text-slate-500" colSpan={8}>
+                  No assignments
+                </td>
+              </tr>
             ) : (
-              filtered.map(r => (
+              filtered.map((r) => (
                 <tr key={r.id} className="border-t">
                   <td className="px-3 py-2">{r.day_of_week}</td>
-                  <td className="px-3 py-2">{r.class_name?.name || r.class_name}</td>
-                  <td className="px-3 py-2">{r.section || "-"}</td>
-                  <td className="px-3 py-2">{r.subject?.name || r.subject}</td>
-                  <td className="px-3 py-2">{r.teacher?.username || r.teacher || "-"}</td>
-                  <td className="px-3 py-2">{r.period || "-"}</td>
                   <td className="px-3 py-2">
-                    {r.start_time?.slice(0,5)}–{r.end_time?.slice(0,5)}
+                    {r.class_name?.name || r.class_name?.title || r.class_name}
                   </td>
-                  <td className="px-3 py-2 text-right space-x-2">
+                  <td className="px-3 py-2">
+                    {r.section?.name || r.section?.code || r.section || "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.subject?.name || r.subject || "-"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.teacher?.full_name ||
+                      r.teacher?.username ||
+                      r.teacher?.email ||
+                      r.teacher ||
+                      "-"}
+                  </td>
+                  <td className="px-3 py-2">{r.period || "-"}</td>
+                  <td className="px-3 py-2">{r.room || "-"}</td>
+                  <td className="px-3 py-2 text-right space-x-2 whitespace-nowrap">
                     <button
-                      onClick={() => navigate("/dashboard/class-routines/new", { state: { routine: r } })}
+                      onClick={() =>
+                        navigate("/dashboard/assigned-teacher-form", {
+                          state: { assignment: r },
+                        })
+                      }
                       className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
                     >
                       Edit

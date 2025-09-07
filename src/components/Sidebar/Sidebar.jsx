@@ -212,7 +212,7 @@ export default function Sidebar() {
             </NavLink>
 
             {/* Existing academic items */}
-            <NavLink to="/dashboard/class-routines" className={navLinkStyle}>
+            <NavLink to="/dashboard/assigned-teacher-list" className={navLinkStyle}>
               <FaRegCalendarAlt className="text-lg" />
               {!collapsed && "Class Routine"}
             </NavLink>
