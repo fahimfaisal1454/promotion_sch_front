@@ -15,7 +15,7 @@ export default function AddSubject() {
   const [currentId, setCurrentId] = useState(null);
   const [form, setForm] = useState({
     name: "",
-    class_name: "",      // class id
+    class_name: "", // class id
     is_theory: true,
     is_practical: false,
   });
@@ -61,13 +61,20 @@ export default function AddSubject() {
       data = data.filter((s) => (s.name || "").toLowerCase().includes(n));
     }
     if (classFilter?.value) {
-      data = data.filter((s) => String(s.class_name) === String(classFilter.value));
+      data = data.filter(
+        (s) => String(s.class_name) === String(classFilter.value)
+      );
     }
     return data;
   }, [subjects, q, classFilter]);
 
   const openCreate = () => {
-    setForm({ name: "", class_name: "", is_theory: true, is_practical: false });
+    setForm({
+      name: "",
+      class_name: "",
+      is_theory: true,
+      is_practical: false,
+    });
     setIsEditing(false);
     setCurrentId(null);
     setIsModalOpen(true);
@@ -108,8 +115,7 @@ export default function AddSubject() {
       await loadAll();
     } catch (e) {
       console.error(e);
-      const msg =
-        e?.response?.data || e?.message || "Save failed";
+      const msg = e?.response?.data || e?.message || "Save failed";
       toast.error(typeof msg === "string" ? msg : "Save failed");
     }
   };
@@ -143,7 +149,9 @@ export default function AddSubject() {
       {/* Filters */}
       <div className="grid gap-3 md:grid-cols-2 max-w-2xl mb-4">
         <div>
-          <label className="block text-sm mb-1 text-slate-700">Search by name</label>
+          <label className="block text-sm mb-1 text-slate-700">
+            Search by name
+          </label>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -152,7 +160,9 @@ export default function AddSubject() {
           />
         </div>
         <div>
-          <label className="block text-sm mb-1 text-slate-700">Filter by class</label>
+          <label className="block text-sm mb-1 text-slate-700">
+            Filter by class
+          </label>
           <Select
             isClearable
             options={classOptions}
@@ -169,29 +179,47 @@ export default function AddSubject() {
         <table className="min-w-full">
           <thead className="bg-slate-100">
             <tr>
-              <th className="px-3 py-2 text-left text-sm text-slate-600 w-16">#</th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">Subject</th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">Class</th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">Type</th>
-              <th className="px-3 py-2 text-right text-sm text-slate-600 w-44">Actions</th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600 w-16">
+                #
+              </th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">
+                Subject
+              </th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">
+                Class
+              </th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">
+                Type
+              </th>
+              <th className="px-3 py-2 text-right text-sm text-slate-600 w-44">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-6 text-center text-slate-500" colSpan={5}>
+                <td
+                  className="px-3 py-6 text-center text-slate-500"
+                  colSpan={5}
+                >
                   Loading…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-center text-slate-500" colSpan={5}>
+                <td
+                  className="px-3 py-6 text-center text-slate-500"
+                  colSpan={5}
+                >
                   No subjects found
                 </td>
               </tr>
             ) : (
               filtered.map((s, i) => {
-                const cls = classes.find((c) => String(c.id) === String(s.class_name));
+                const cls = classes.find(
+                  (c) => String(c.id) === String(s.class_name)
+                );
                 const typeLabels = [
                   s.is_theory ? "Theoretical" : null,
                   s.is_practical ? "Practical" : null,
@@ -199,7 +227,9 @@ export default function AddSubject() {
                 return (
                   <tr key={s.id} className="border-t hover:bg-slate-50/50">
                     <td className="px-3 py-2">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium">{s.name || "-"}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {s.name || "-"}
+                    </td>
                     <td className="px-3 py-2">{cls?.name || "-"}</td>
                     <td className="px-3 py-2">
                       {typeLabels.length ? typeLabels.join(", ") : "—"}
@@ -246,10 +276,14 @@ export default function AddSubject() {
 
             <form onSubmit={save} className="px-5 py-5 grid gap-4">
               <div>
-                <label className="block text-sm mb-1 text-slate-700">Subject name *</label>
+                <label className="block text-sm mb-1 text-slate-700">
+                  Subject name *
+                </label>
                 <input
                   value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }
                   placeholder="e.g., Mathematics, Physics"
                   className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -257,25 +291,38 @@ export default function AddSubject() {
               </div>
 
               <div>
-                <label className="block text-sm mb-1 text-slate-700">Class *</label>
+                <label className="block text-sm mb-1 text-slate-700">
+                  Class *
+                </label>
                 <Select
                   options={classOptions}
-                  value={classOptions.find((o) => String(o.value) === String(form.class_name)) || null}
-                  onChange={(opt) => setForm((f) => ({ ...f, class_name: opt?.value || "" }))}
+                  value={
+                    classOptions.find(
+                      (o) => String(o.value) === String(form.class_name)
+                    ) || null
+                  }
+                  onChange={(opt) =>
+                    setForm((f) => ({ ...f, class_name: opt?.value || "" }))
+                  }
                   placeholder="Select class…"
                   classNamePrefix="select"
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-slate-700">Subject type</label>
+                <label className="block text-sm mb-2 text-slate-700">
+                  Subject type
+                </label>
                 <div className="flex items-center gap-5">
                   <label className="inline-flex items-center gap-2 text-slate-700">
                     <input
                       type="checkbox"
                       checked={form.is_theory}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, is_theory: e.target.checked }))
+                        setForm((f) => ({
+                          ...f,
+                          is_theory: e.target.checked,
+                        }))
                       }
                     />
                     <span>Theoretical</span>
@@ -285,7 +332,10 @@ export default function AddSubject() {
                       type="checkbox"
                       checked={form.is_practical}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, is_practical: e.target.checked }))
+                        setForm((f) => ({
+                          ...f,
+                          is_practical: e.target.checked,
+                        }))
                       }
                     />
                     <span>Practical</span>
