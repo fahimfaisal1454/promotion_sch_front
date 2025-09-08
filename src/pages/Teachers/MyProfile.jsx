@@ -170,7 +170,8 @@ const onChangePassword = async (e) => {
             <input
               type="password"
               value={pw.current_password}
-              onChange={(e)=> setPw(s=>({...s, current_password: e.target.value}))}
+             onChange={(e) => setPw(s => ({ ...s, current_password: e.target.value }))}
+              
               className="input input-bordered w-full"
             />
           </label>
@@ -179,7 +180,7 @@ const onChangePassword = async (e) => {
             <input
               type="password"
               value={pw.new_password}
-              onChange={(e)=> setPw(s=>({...s, new_password: e.target.value}))}
+              onChange={(e) => setPw(s => ({ ...s, new_password: e.target.value }))}
               className="input input-bordered w-full"
             />
           </label>
@@ -188,7 +189,7 @@ const onChangePassword = async (e) => {
             <input
               type="password"
               value={pw.confirm_password}
-              onChange={(e)=> setPw(s=>({...s, confirm_password: e.target.value}))}
+              onChange={(e) => setPw(s => ({ ...s, confirm_password: e.target.value }))}
               className="input input-bordered w-full md:max-w-sm"
             />
           </label>
