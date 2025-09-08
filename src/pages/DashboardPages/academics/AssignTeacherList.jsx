@@ -1,220 +1,179 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../../components/AxiosInstance";
 
-export default function AssignTeacherList() {
+export default function AssignedTeacherList() {
   const navigate = useNavigate();
-
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const [teachers, setTeachers] = useState([]);
+  // simple filters (optional)
   const [filters, setFilters] = useState({
-    day: "",
-    className: "",
-    section: "",
-    teacherId: "",
+    day: "All",
+    classQuery: "",
+    sectionQuery: "",
+    teacher: "All",
   });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [assignments, teachersRes] = await Promise.all([
-        AxiosInstance.get("assign-teachers/").then((r) => r.data || []),
-        AxiosInstance.get("teachers/").then((r) => r.data || []), // Teacher Info
-      ]);
-      setRows(assignments);
-      // normalize teacher labels for the filter dropdown
-      const tOpts = (Array.isArray(teachersRes) ? teachersRes : []).map((t) => ({
-        id: t.id,
-        label:
-          t.full_name ||
-          t.contact_email ||
-          t.user_username ||
-          t.username ||
-          t.email ||
-          `Teacher #${t.id}`,
-      }));
-      setTeachers(tOpts);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    load().catch(console.error);
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await AxiosInstance.get("assign-teachers/");
+        setRows(Array.isArray(res.data) ? res.data : []);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const onFilter = (k, v) => setFilters((prev) => ({ ...prev, [k]: v }));
-
   const filtered = useMemo(() => {
-    let data = Array.isArray(rows) ? [...rows] : [];
+    return rows.filter((r) => {
+      const dayOk =
+        filters.day === "All" ||
+        (r.day_of_week_display || r.day_of_week) === filters.day;
 
-    if (filters.day) {
-      data = data.filter(
-        (r) =>
-          (r.day_of_week || "").toLowerCase() === filters.day.toLowerCase()
-      );
-    }
-    if (filters.className) {
-      data = data.filter((r) => {
-        const name =
-          r.class_name?.name || r.class_name?.title || r.class_name || "";
-        return name.toLowerCase().includes(filters.className.toLowerCase());
-      });
-    }
-    if (filters.section) {
-      const secFilter = filters.section.toLowerCase();
-      data = data.filter((r) => {
-        const sec =
-          r.section?.name ||
-          r.section?.code ||
-          r.section?.label ||
-          r.section ||
-          "";
-        return String(sec).toLowerCase() === secFilter;
-      });
-    }
-    if (filters.teacherId) {
-      data = data.filter(
-        (r) => String(r.teacher?.id || r.teacher) === String(filters.teacherId)
-      );
-    }
-    return data;
+      const classOk =
+        !filters.classQuery ||
+        (r.class_name_label || String(r.class_name)).toLowerCase().includes(
+          filters.classQuery.toLowerCase()
+        );
+
+      const sectionOk =
+        !filters.sectionQuery ||
+        (r.section_label || String(r.section)).toLowerCase().includes(
+          filters.sectionQuery.toLowerCase()
+        );
+
+      const teacherOk =
+        filters.teacher === "All" ||
+        (r.teacher_label || String(r.teacher)) === filters.teacher;
+
+      return dayOk && classOk && sectionOk && teacherOk;
+    });
   }, [rows, filters]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this assignment?")) return;
-    await AxiosInstance.delete(`assign-teachers/${id}/`);
-    setRows((prev) => prev.filter((r) => r.id !== id));
-  };
+  const uniqueDays = useMemo(() => {
+    const s = new Set(rows.map((r) => r.day_of_week_display || r.day_of_week));
+    return ["All", ...Array.from(s)];
+  }, [rows]);
+
+  const uniqueTeachers = useMemo(() => {
+    const s = new Set(rows.map((r) => r.teacher_label || String(r.teacher)));
+    return ["All", ...Array.from(s)];
+  }, [rows]);
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl font-semibold">Assigned Teachers</h2>
         <button
+          className="bg-green-600 text-white px-4 py-2 rounded"
           onClick={() => navigate("/dashboard/assigned-teacher-form")}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
         >
           + Assign Teacher
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow p-3 grid gap-3 md:grid-cols-5">
+      <div className="grid md:grid-cols-4 gap-3 mb-4 bg-white p-3 rounded-lg shadow">
         <div>
-          <label className="block text-sm mb-1">Day</label>
+          <label className="block text-xs mb-1">Day</label>
           <select
             className="w-full border rounded p-2"
             value={filters.day}
-            onChange={(e) => onFilter("day", e.target.value)}
+            onChange={(e) => setFilters((f) => ({ ...f, day: e.target.value }))}
           >
-            <option value="">All</option>
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-              <option key={d}>{d}</option>
+            {uniqueDays.map((d) => (
+              <option key={d} value={d}>{d}</option>
             ))}
           </select>
         </div>
+
         <div>
-          <label className="block text-sm mb-1">Class</label>
+          <label className="block text-xs mb-1">Class</label>
           <input
             className="w-full border rounded p-2"
             placeholder="e.g. Class 7"
-            value={filters.className}
-            onChange={(e) => onFilter("className", e.target.value)}
+            value={filters.classQuery}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, classQuery: e.target.value }))
+            }
           />
         </div>
+
         <div>
-          <label className="block text-sm mb-1">Section</label>
+          <label className="block text-xs mb-1">Section</label>
           <input
             className="w-full border rounded p-2"
             placeholder="e.g. A"
-            value={filters.section}
-            onChange={(e) => onFilter("section", e.target.value)}
+            value={filters.sectionQuery}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, sectionQuery: e.target.value }))
+            }
           />
         </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm mb-1">Teacher</label>
+
+        <div>
+          <label className="block text-xs mb-1">Teacher</label>
           <select
             className="w-full border rounded p-2"
-            value={filters.teacherId}
-            onChange={(e) => onFilter("teacherId", e.target.value)}
+            value={filters.teacher}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, teacher: e.target.value }))
+            }
           >
-            <option value="">All</option>
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
+            {uniqueTeachers.map((t) => (
+              <option key={t} value={t}>{t}</option>
             ))}
           </select>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-        <table className="min-w-full text-left">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="px-3 py-2">Day</th>
-              <th className="px-3 py-2">Class</th>
-              <th className="px-3 py-2">Sec</th>
-              <th className="px-3 py-2">Subject</th>
-              <th className="px-3 py-2">Teacher</th>
-              <th className="px-3 py-2">Period</th>
-              <th className="px-3 py-2">Room</th>
-              <th className="px-3 py-2 text-right">Actions</th>
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr className="bg-slate-100 text-left">
+              <th className="px-4 py-2">Day</th>
+              <th className="px-4 py-2">Class</th>
+              <th className="px-4 py-2">Sec</th>
+              <th className="px-4 py-2">Subject</th>
+              <th className="px-4 py-2">Teacher</th>
+              <th className="px-4 py-2">Period</th>
+              <th className="px-4 py-2">Room</th>
+              <th className="px-4 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td className="px-3 py-4" colSpan={8}>
-                  Loading…
-                </td>
-              </tr>
+              <tr><td className="px-4 py-6" colSpan={8}>Loading…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={8}>
-                  No assignments
-                </td>
-              </tr>
+              <tr><td className="px-4 py-6" colSpan={8}>No assignments found.</td></tr>
             ) : (
               filtered.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">{r.day_of_week}</td>
-                  <td className="px-3 py-2">
-                    {r.class_name?.name || r.class_name?.title || r.class_name}
-                  </td>
-                  <td className="px-3 py-2">
-                    {r.section?.name || r.section?.code || r.section || "-"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {r.subject?.name || r.subject || "-"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {r.teacher?.full_name ||
-                      r.teacher?.username ||
-                      r.teacher?.email ||
-                      r.teacher ||
-                      "-"}
-                  </td>
-                  <td className="px-3 py-2">{r.period || "-"}</td>
-                  <td className="px-3 py-2">{r.room || "-"}</td>
-                  <td className="px-3 py-2 text-right space-x-2 whitespace-nowrap">
+                  <td className="px-4 py-2">{r.day_of_week_display || r.day_of_week}</td>
+                  <td className="px-4 py-2">{r.class_name_label || r.class_name}</td>
+                  <td className="px-4 py-2">{r.section_label || r.section}</td>
+                  <td className="px-4 py-2">{r.subject_label || r.subject}</td>
+                  <td className="px-4 py-2">{r.teacher_label || r.teacher}</td>
+                  <td className="px-4 py-2">{r.period}</td>
+                  <td className="px-4 py-2">{r.room || "-"}</td>
+                  <td className="px-4 py-2 text-right">
                     <button
-                      onClick={() =>
-                        navigate("/dashboard/assigned-teacher-form", {
-                          state: { assignment: r },
-                        })
-                      }
-                      className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="px-3 py-1 rounded bg-indigo-600 text-white mr-2"
+                      onClick={() => navigate("/dashboard/assigned-teacher-form", { state: { assignment: r } })}
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(r.id)}
-                      className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+                      className="px-3 py-1 rounded bg-red-600 text-white"
+                      onClick={async () => {
+                        if (!window.confirm("Delete this assignment?")) return;
+                        await AxiosInstance.delete(`assign-teachers/${r.id}/`);
+                        setRows((prev) => prev.filter((x) => x.id !== r.id));
+                      }}
                     >
                       Delete
                     </button>

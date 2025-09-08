@@ -250,7 +250,7 @@ export default function AssignTeacherForm() {
       }
 
       alert("Saved!");
-      navigate("/dashboard/assign-teachers");
+      navigate("/dashboard/assigned-teacher-list");
     } catch (err) {
       const data = err?.response?.data || {};
       const lines = Object.entries(data).map(
