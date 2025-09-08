@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { IoIosLogOut } from "react-icons/io";
 import { AiFillHome } from "react-icons/ai";
+import { FaUserAlt } from "react-icons/fa";
 import { MdDashboard, MdAssignment } from "react-icons/md";
 import { FaChalkboardTeacher, FaBookOpen, FaRegCalendarAlt, FaBell } from "react-icons/fa";
 import { TbReportAnalytics } from "react-icons/tb";
@@ -66,6 +67,11 @@ export default function TeacherSidebar() {
         <NavLink to="/teacher/dashboard" className={navLinkStyle} title="Dashboard">
           <MdDashboard className="text-lg" />
           {!collapsed && "Dashboard"}
+        </NavLink>
+
+        <NavLink to="/teacher/profile" className={navLinkStyle} title="My Profile">
+          <FaUserAlt className="text-lg" />
+          {!collapsed && "My Profile"}
         </NavLink>
 
         <NavLink to="/teacher/classes" className={navLinkStyle} title="My Classes">

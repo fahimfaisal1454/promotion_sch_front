@@ -47,6 +47,7 @@ import AssignTeacherList from "./pages/DashboardPages/academics/AssignTeacherLis
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
 import TeacherDashboard from "./pages/Teachers/Dashboard.jsx";
+import MyProfile from "./pages/Teachers/MyProfile.jsx";
 import MyClasses from "./pages/Teachers/MyClasses.jsx";
 import Attendance from "./pages/Teachers/Attendance.jsx";
 import Exams from "./pages/Teachers/Exams.jsx";
@@ -164,6 +165,7 @@ const router = createBrowserRouter([
       { path: "reports", element: <Reports /> },
       { path: "notices", element: <TeacherNotices /> },
       { path: "students", element: <MyStudents /> },
+      { path: "profile", element: <MyProfile /> },
     ],
   },
 ]);
