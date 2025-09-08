@@ -38,6 +38,7 @@ import ContactList from "./pages/DashboardPages/Master/ContactList.jsx";
 import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgment.jsx";
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
 import ManageUsers from "./pages/Admin/ManageUsers.jsx";
+import LinkAccount from "./pages/Admin/LinkAccount.jsx"
 
 import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 import AssignedSubjects from "./pages/DashboardPages/Academics/AssignedSubjects.jsx";
@@ -145,6 +146,7 @@ const router = createBrowserRouter([
       { path: "class-timetable", element: <ClassTimetable /> },
       { path: "assigned-teacher-form", element: <AssignTeacherForm /> },
       { path: "assigned-teacher-list", element: <AssignTeacherList /> },
+      { path: "link-account", element: <LinkAccount /> },
     ],
   },
 

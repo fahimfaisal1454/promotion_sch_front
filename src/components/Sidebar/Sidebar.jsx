@@ -166,6 +166,10 @@ export default function Sidebar() {
               <RiTeamFill className="text-lg" />
               {!collapsed && "Users"}
             </NavLink>
+            <NavLink to="/dashboard/link-account" className={navLinkStyle}>
+              <RiTeamFill className="text-lg" />
+              {!collapsed && "Link Account"}
+            </NavLink>
           </div>
         </div>
 
