@@ -1,40 +1,52 @@
 import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
-// --- Minimal API client -----------------------------------------
-const API = {
-  async getUnlinkedTeachers(signal) {
-    const res = await fetch("/api/teachers?unlinked=1", {
-      signal,
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Failed to load teachers (${res.status})`);
-    return res.json();
-  },
-  async getUnlinkedTeacherUsers(signal) {
-    const res = await fetch("/api/users?role=teacher&unlinked=1", {
-      signal,
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Failed to load users (${res.status})`);
-    return res.json();
-  },
-  async linkTeacherUser(teacherId, userId) {
-    const res = await fetch(`/api/teachers/${teacherId}/link-user`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ user_id: userId }),
-    });
-    if (!res.ok) {
-      let msg = "";
-      try { msg = await res.text(); } catch {}
-      throw new Error(msg || `Link failed (${res.status})`);
-    }
-    try { return await res.json(); } catch { return {}; }
-  },
-};
+/* ===================== Axios client (no provider import) ===================== */
+const API_BASE = (import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:8000/api/")
+  .replace(/\/+$/, "/"); // ensure single trailing slash
 
-// --- Helpers ------------------------------------------------------
+function getCookie(name) {
+  if (typeof document === "undefined") return "";
+  for (const c of (document.cookie || "").split("; ")) {
+    const [k, v] = c.split("=");
+    if (k === name) return decodeURIComponent(v);
+  }
+  return "";
+}
+
+const AxiosInstance = axios.create({
+  baseURL: API_BASE,        // -> http://127.0.0.1:8000/api/
+  withCredentials: true,    // send session cookie if using SessionAuth
+  headers: { Accept: "application/json" },
+});
+
+// Attach token (if you use JWT) + CSRF (if you use SessionAuth)
+AxiosInstance.interceptors.request.use((config) => {
+  const token =
+    localStorage.getItem("access") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("access");
+
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = token.startsWith("Bearer ")
+      ? token
+      : `Bearer ${token}`;
+  }
+  if (!config.headers["X-CSRFToken"]) {
+    const csrftoken = getCookie("csrftoken");
+    if (csrftoken) config.headers["X-CSRFToken"] = csrftoken;
+  }
+  return config;
+});
+
+/* ====================== Endpoints (edit if your paths differ) ====================== */
+const TEACHERS_LIST_URL = "people/teachers/";                 // GET list
+const USERS_LIST_PRIMARY = "authentication/users/";           // GET list (admin)
+const USERS_LIST_FALLBACK = "users/";                         // fallback path
+const LINK_URL = (teacherId) => `people/teachers/${teacherId}/link-user/`; // POST {user_id}
+
+/* ============================== UI helpers ============================== */
 function fuzzyIncludes(hay, needle) {
   if (!needle) return true;
   return (hay || "").toLowerCase().includes(needle.toLowerCase());
@@ -49,7 +61,6 @@ function displayUser(u) {
   const sub = u.email || u.role || "";
   return { name, sub };
 }
-
 function ItemRow({ active, title, subtitle, onClick }) {
   return (
     <li>
@@ -66,7 +77,7 @@ function ItemRow({ active, title, subtitle, onClick }) {
   );
 }
 
-// --- Main component -----------------------------------------------
+/* ============================== Main component ============================== */
 export default function LinkAccount() {
   const [teachers, setTeachers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -81,44 +92,76 @@ export default function LinkAccount() {
   const [selectedTeacherId, setSelectedTeacherId] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  const [message, setMessage] = useState(null); // {type: 'success'|'error', text: string}
+  const [message, setMessage] = useState(null); // {type:'success'|'error', text:string}
 
-  // Load unlinked Teachers
+  // Load UNLINKED teachers (fetch all, then filter client-side)
   useEffect(() => {
-    const ac = new AbortController();
-    setLoadingTeachers(true);
-    API.getUnlinkedTeachers(ac.signal)
-      .then((data) => setTeachers(Array.isArray(data) ? data : data.results || []))
-      .catch((e) => setMessage({ type: "error", text: e.message }))
-      .finally(() => setLoadingTeachers(false));
-    return () => ac.abort();
+    let cancel = false;
+    (async () => {
+      setLoadingTeachers(true);
+      try {
+        const res = await AxiosInstance.get(TEACHERS_LIST_URL, { params: { page_size: 1000 } });
+        const list = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const unlinked = list.filter(
+          (t) => t.user === null || t.user_id === null || (t.user === undefined && t.user_id === undefined)
+        );
+        if (!cancel) setTeachers(unlinked);
+      } catch (e) {
+        if (!cancel) setMessage({ type: "error", text: e?.response?.data?.detail || e.message });
+      } finally {
+        if (!cancel) setLoadingTeachers(false);
+      }
+    })();
+    return () => { cancel = true; };
   }, []);
 
-  // Load unlinked Teacher Users
+  // Load UNLINKED teacher users (try primary path, then fallback)
   useEffect(() => {
-    const ac = new AbortController();
-    setLoadingUsers(true);
-    API.getUnlinkedTeacherUsers(ac.signal)
-      .then((data) => setUsers(Array.isArray(data) ? data : data.results || []))
-      .catch((e) => setMessage({ type: "error", text: e.message }))
-      .finally(() => setLoadingUsers(false));
-    return () => ac.abort();
+    let cancel = false;
+    (async () => {
+      setLoadingUsers(true);
+      try {
+        let res;
+        try {
+          res = await AxiosInstance.get(USERS_LIST_PRIMARY, { params: { page_size: 1000 } });
+        } catch (e) {
+          // fallback if the primary path doesn't exist
+          res = await AxiosInstance.get(USERS_LIST_FALLBACK, { params: { page_size: 1000 } });
+        }
+        const list = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const teacherUsers = list.filter((u) => {
+          const roleOk =
+            (u.role && String(u.role).toLowerCase() === "teacher") ||
+            (u.roles && u.roles.includes("Teacher")) ||
+            (u.is_teacher === true);
+          const notLinked =
+            u.teacher === null || u.teacher_id === null || u.teacher_profile === null ||
+            (u.teacher_id === undefined && u.teacher === undefined && u.teacher_profile === undefined);
+          return roleOk && notLinked;
+        });
+        if (!cancel) setUsers(teacherUsers);
+      } catch (e) {
+        if (!cancel) setMessage({ type: "error", text: e?.response?.data?.detail || e.message });
+      } finally {
+        if (!cancel) setLoadingUsers(false);
+      }
+    })();
+    return () => { cancel = true; };
   }, []);
 
   const filteredTeachers = useMemo(
-    () =>
-      teachers.filter((t) => {
-        const { name, sub } = displayTeacher(t);
-        return fuzzyIncludes(name, teacherQuery) || fuzzyIncludes(sub, teacherQuery);
-      }),
+    () => teachers.filter((t) => {
+      const { name, sub } = displayTeacher(t);
+      return fuzzyIncludes(name, teacherQuery) || fuzzyIncludes(sub, teacherQuery);
+    }),
     [teachers, teacherQuery]
   );
+
   const filteredUsers = useMemo(
-    () =>
-      users.filter((u) => {
-        const { name, sub } = displayUser(u);
-        return fuzzyIncludes(name, userQuery) || fuzzyIncludes(sub, userQuery);
-      }),
+    () => users.filter((u) => {
+      const { name, sub } = displayUser(u);
+      return fuzzyIncludes(name, userQuery) || fuzzyIncludes(sub, userQuery);
+    }),
     [users, userQuery]
   );
 
@@ -131,7 +174,7 @@ export default function LinkAccount() {
     try {
       setLinking(true);
       setMessage(null);
-      await API.linkTeacherUser(selectedTeacher.id, selectedUser.id);
+      await AxiosInstance.post(LINK_URL(selectedTeacher.id), { user_id: selectedUser.id });
       setMessage({
         type: "success",
         text: `Linked ${displayTeacher(selectedTeacher).name} ↔ ${displayUser(selectedUser).name}`,
@@ -141,25 +184,54 @@ export default function LinkAccount() {
       setSelectedTeacherId(null);
       setSelectedUserId(null);
     } catch (e) {
-      setMessage({ type: "error", text: e.message });
+      setMessage({ type: "error", text: e?.response?.data?.detail || e.message });
     } finally {
       setLinking(false);
     }
   }
 
-  function refreshTeachers() {
+  function reloadTeachers() {
     setLoadingTeachers(true);
-    API.getUnlinkedTeachers()
-      .then((data) => setTeachers(Array.isArray(data) ? data : data.results || []))
-      .catch((e) => setMessage({ type: "error", text: e.message }))
+    AxiosInstance.get(TEACHERS_LIST_URL, { params: { page_size: 1000 } })
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const unlinked = list.filter(
+          (t) => t.user === null || t.user_id === null || (t.user === undefined && t.user_id === undefined)
+        );
+        setTeachers(unlinked);
+      })
+      .catch((e) => setMessage({ type: "error", text: e?.response?.data?.detail || e.message }))
       .finally(() => setLoadingTeachers(false));
   }
-  function refreshUsers() {
+
+  function reloadUsers() {
     setLoadingUsers(true);
-    API.getUnlinkedTeacherUsers()
-      .then((data) => setUsers(Array.isArray(data) ? data : data.results || []))
-      .catch((e) => setMessage({ type: "error", text: e.message }))
-      .finally(() => setLoadingUsers(false));
+    (async () => {
+      try {
+        let res;
+        try {
+          res = await AxiosInstance.get(USERS_LIST_PRIMARY, { params: { page_size: 1000 } });
+        } catch (e) {
+          res = await AxiosInstance.get(USERS_LIST_FALLBACK, { params: { page_size: 1000 } });
+        }
+        const list = Array.isArray(res.data) ? res.data : res.data.results || [];
+        const teacherUsers = list.filter((u) => {
+          const roleOk =
+            (u.role && String(u.role).toLowerCase() === "teacher") ||
+            (u.roles && u.roles.includes("Teacher")) ||
+            (u.is_teacher === true);
+          const notLinked =
+            u.teacher === null || u.teacher_id === null || u.teacher_profile === null ||
+            (u.teacher_id === undefined && u.teacher === undefined && u.teacher_profile === undefined);
+          return roleOk && notLinked;
+        });
+        setUsers(teacherUsers);
+      } catch (e) {
+        setMessage({ type: "error", text: e?.response?.data?.detail || e.message });
+      } finally {
+        setLoadingUsers(false);
+      }
+    })();
   }
 
   return (
@@ -170,10 +242,10 @@ export default function LinkAccount() {
           <p className="text-sm opacity-70">Pick an unlinked teacher and a teacher user, then click Link.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={refreshTeachers} disabled={loadingTeachers}>
+          <button className="btn btn-outline" onClick={reloadTeachers} disabled={loadingTeachers}>
             {loadingTeachers ? "Loading…" : "Reload Teachers"}
           </button>
-          <button className="btn btn-outline" onClick={refreshUsers} disabled={loadingUsers}>
+          <button className="btn btn-outline" onClick={reloadUsers} disabled={loadingUsers}>
             {loadingUsers ? "Loading…" : "Reload Users"}
           </button>
           <button className="btn btn-primary" onClick={handleLink} disabled={!canLink || linking}>
