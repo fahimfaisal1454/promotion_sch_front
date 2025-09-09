@@ -10,7 +10,7 @@ export default function StudentInfo() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentStudentId, setCurrentStudentId] = useState(null);
   const [classOptions, setClassOptions] = useState([]);
-  const [classes, setClasses] = useState([]); // To store raw class data
+  const [classes, setClasses] = useState([]);
   const [classMap, setClassMap] = useState({});
   const [formData, setFormData] = useState({
     full_name: "",
@@ -25,10 +25,7 @@ export default function StudentInfo() {
     contact_phone: "",
     photo: null,
   });
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    itemsPerPage: 10,
-  });
+  const [pagination, setPagination] = useState({ currentPage: 1, itemsPerPage: 10 });
   const [preview, setPreview] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -49,22 +46,17 @@ export default function StudentInfo() {
         setFilteredStudents(studentsRes.data || []);
         setClasses(classesRes.data || []);
 
-        // Create mapping of ID to class name
         const mapping = {};
         classesRes.data.forEach((cls) => {
           mapping[cls.id] = cls.name;
         });
         setClassMap(mapping);
 
-        // Prepare class options for react-select
         setClassOptions(
-          classesRes.data.map((cls) => ({
-            value: cls.id,
-            label: cls.name,
-          }))
+          classesRes.data.map((cls) => ({ value: cls.id, label: cls.name }))
         );
       } catch (error) {
-        // toast.error("ডেটা লোড করতে সমস্যা হয়েছে");
+        // toast.error("Failed to load data.");
       } finally {
         setIsLoading(false);
       }
@@ -72,30 +64,28 @@ export default function StudentInfo() {
     fetchData();
   }, []);
 
-  // Update filtered students when search term or class changes
+  // Filter by search and class
   useEffect(() => {
     let results = students;
 
     if (searchTerm) {
-      results = results.filter((student) =>
-        student.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+      results = results.filter((s) =>
+        s.full_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (selectedClass) {
       results = results.filter(
-        (student) => student.class_name.toString() === selectedClass.toString()
+        (s) => s.class_name?.toString() === selectedClass.toString()
       );
     }
 
     setFilteredStudents(results);
   }, [searchTerm, selectedClass, students]);
-  // Prepare name options for react-select
+
+  // React-select options for searching by name
   useEffect(() => {
-    const options = students.map((student) => ({
-      value: student.id,
-      label: student.full_name,
-    }));
+    const options = students.map((s) => ({ value: s.id, label: s.full_name }));
     setNameOptions(options);
   }, [students]);
 
@@ -103,12 +93,12 @@ export default function StudentInfo() {
     const { name, value, type, files } = e.target;
     if (type === "file") {
       const file = files[0];
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("ফাইলের সাইজ 2MB এর বেশি হতে পারবে না");
+      if (file && file.size > 2 * 1024 * 1024) {
+        toast.error("File must be 2MB or smaller.");
         return;
-      }
-      setFormData({ ...formData, photo: file });
-      setPreview(URL.createObjectURL(file));
+        }
+      setFormData({ ...formData, photo: file || null });
+      setPreview(file ? URL.createObjectURL(file) : null);
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -118,75 +108,51 @@ export default function StudentInfo() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validate required fields
     if (!formData.full_name || !formData.roll_number || !formData.class_name) {
-      toast.error("দয়া করে নাম, রোল নম্বর এবং শ্রেণী পূরণ করুন");
+      toast.error("Please fill Name, Roll Number and Class.");
       setIsSubmitting(false);
       return;
     }
 
     try {
       const formDataToSend = new FormData();
-
-      // Required fields
       formDataToSend.append("full_name", formData.full_name);
       formDataToSend.append("roll_number", formData.roll_number);
       formDataToSend.append("class_name", formData.class_name);
 
-      // Optional fields (only append if they have values)
       if (formData.photo) formDataToSend.append("photo", formData.photo);
-      if (formData.contact_email)
-        formDataToSend.append("contact_email", formData.contact_email);
-      if (formData.contact_phone)
-        formDataToSend.append("contact_phone", formData.contact_phone);
+      if (formData.contact_email) formDataToSend.append("contact_email", formData.contact_email);
+      if (formData.contact_phone) formDataToSend.append("contact_phone", formData.contact_phone);
       if (formData.section) formDataToSend.append("section", formData.section);
-      if (formData.date_of_birth)
-        formDataToSend.append("date_of_birth", formData.date_of_birth);
+      if (formData.date_of_birth) formDataToSend.append("date_of_birth", formData.date_of_birth);
       if (formData.address) formDataToSend.append("address", formData.address);
-      if (formData.guardian_name)
-        formDataToSend.append("guardian_name", formData.guardian_name);
-      if (formData.guardian_contact)
-        formDataToSend.append("guardian_contact", formData.guardian_contact);
+      if (formData.guardian_name) formDataToSend.append("guardian_name", formData.guardian_name);
+      if (formData.guardian_contact) formDataToSend.append("guardian_contact", formData.guardian_contact);
 
-      // Generate a simple digitaal_id_code if not provided
+      // simple digital id code if you support it server-side
       const digitalIdCode =
-        formData.digital_id_code ||
-        `${formData.roll_number}-${formData.class_name}-${Date.now()}`;
+        formData.digital_id_code || `${formData.roll_number}-${formData.class_name}-${Date.now()}`;
       formDataToSend.append("digital_id_code", digitalIdCode);
 
       if (isEditing) {
-        await axiosInstance.put(
-          `students/${currentStudentId}/`,
-          formDataToSend,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-        toast.success("শিক্ষার্থীর তথ্য সফলভাবে আপডেট হয়েছে");
+        await axiosInstance.put(`students/${currentStudentId}/`, formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast.success("Student updated successfully.");
       } else {
         await axiosInstance.post("students/", formDataToSend, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         });
-        toast.success("শিক্ষার্থীর তথ্য সফলভাবে জমা হয়েছে");
+        toast.success("Student created successfully.");
       }
 
-      // Refresh data
-      const response = await axiosInstance.get("students/");
-      setStudents(response.data || []);
-      setFilteredStudents(response.data || []);
+      const refreshed = await axiosInstance.get("students/");
+      setStudents(refreshed.data || []);
+      setFilteredStudents(refreshed.data || []);
       resetForm();
     } catch (error) {
-      console.error(
-        "Error submitting form:",
-        error.response?.data || error.message
-      );
-      toast.error(
-        `একটি সমস্যা হয়েছে: ${error.response?.data?.detail || error.message}`
-      );
+      console.error("Error submitting form:", error.response?.data || error.message);
+      toast.error(`Something went wrong: ${error.response?.data?.detail || error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -196,7 +162,7 @@ export default function StudentInfo() {
     setFormData({
       full_name: student.full_name || "",
       roll_number: student.roll_number || "",
-      class_name: student.class_name ? String(student.class_name) : "", // Force string conversion
+      class_name: student.class_name ? String(student.class_name) : "",
       section: student.section || "",
       date_of_birth: student.date_of_birth || "",
       address: student.address || "",
@@ -209,21 +175,19 @@ export default function StudentInfo() {
     setCurrentStudentId(student.id);
     setIsEditing(true);
     setIsModalOpen(true);
-    if (student.photo) {
-      setPreview(student.photo);
-    }
+    setPreview(student.photo || null);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("আপনি কি এই শিক্ষার্থীর তথ্য মুছে ফেলতে চান?")) {
+    if (window.confirm("Delete this student?")) {
       try {
         await axiosInstance.delete(`students/${id}/`);
-        toast.success("শিক্ষার্থীর তথ্য সফলভাবে মুছে ফেলা হয়েছে");
-        const response = await axiosInstance.get("students/");
-        setStudents(response.data || []);
-        setFilteredStudents(response.data || []);
-      } catch (error) {
-        toast.error("মুছে ফেলতে সমস্যা হয়েছে");
+        toast.success("Student deleted.");
+        const refreshed = await axiosInstance.get("students/");
+        setStudents(refreshed.data || []);
+        setFilteredStudents(refreshed.data || []);
+      } catch {
+        toast.error("Failed to delete.");
       }
     }
   };
@@ -248,15 +212,12 @@ export default function StudentInfo() {
     setCurrentStudentId(null);
   };
 
-  // Pagination logic
   const paginatedStudents = filteredStudents.slice(
     (pagination.currentPage - 1) * pagination.itemsPerPage,
     pagination.currentPage * pagination.itemsPerPage
   );
 
-  const totalPages = Math.ceil(
-    filteredStudents.length / pagination.itemsPerPage
-  );
+  const totalPages = Math.ceil(filteredStudents.length / pagination.itemsPerPage);
 
   const handlePageChange = (page) => {
     if (page > 0 && page <= totalPages) {
@@ -264,10 +225,9 @@ export default function StudentInfo() {
     }
   };
 
-  // Get unique classes
   const getUniqueClasses = () => {
-    const classes = [...new Set(students.map((student) => student.class_name))];
-    return classes.map((cls) => ({ value: cls, label: cls }));
+    const cls = [...new Set(students.map((s) => s.class_name))];
+    return cls.map((c) => ({ value: c, label: c }));
   };
 
   return (
@@ -275,104 +235,69 @@ export default function StudentInfo() {
       <Toaster position="top-center" />
 
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">শিক্ষার্থীদের তালিকা</h2>
+        <h2 className="text-xl font-semibold">Students</h2>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
         >
-          শিক্ষার্থী যোগ করুন
+          Add Student
         </button>
       </div>
 
-      {/* Search and Filter Section */}
+      {/* Search & Filter */}
       <div className="mb-4 max-w-md grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            নাম দিয়ে খুঁজুন
+            Search by Name
           </label>
           <Select
             options={nameOptions}
             isClearable
-            placeholder="শিক্ষার্থীর নাম লিখুন..."
-            onChange={(selectedOption) =>
-              setSearchTerm(selectedOption?.label || "")
-            }
-            onInputChange={(inputValue) => setSearchTerm(inputValue)}
+            placeholder="Type a student name..."
+            onChange={(opt) => setSearchTerm(opt?.label || "")}
+            onInputChange={(val) => setSearchTerm(val)}
             className="basic-single"
             classNamePrefix="select"
             styles={{
-              control: (provided) => ({
-                ...provided,
-                minHeight: "32px",
-                height: "32px",
-              }),
-              placeholder: (provided) => ({
-                ...provided,
-                fontSize: "0.875rem",
-              }),
+              control: (p) => ({ ...p, minHeight: "32px", height: "32px" }),
+              placeholder: (p) => ({ ...p, fontSize: "0.875rem" }),
             }}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            শ্রেণী দিয়ে ফিল্টার করুন
+            Filter by Class
           </label>
-
           <Select
             options={classOptions}
             isClearable
-            placeholder="সকল শ্রেণী"
-            value={classOptions.find(
-              (option) => option.value.toString() === selectedClass.toString()
-            )}
-            onChange={(selectedOption) =>
-              setSelectedClass(selectedOption?.value?.toString() || "")
-            }
+            placeholder="All classes"
+            value={classOptions.find((o) => o.value.toString() === selectedClass.toString())}
+            onChange={(opt) => setSelectedClass(opt?.value?.toString() || "")}
             className="basic-single"
             classNamePrefix="select"
             styles={{
-              control: (provided) => ({
-                ...provided,
-                minHeight: "32px",
-                height: "32px",
-              }),
-              placeholder: (provided) => ({
-                ...provided,
-                fontSize: "0.875rem",
-              }),
+              control: (p) => ({ ...p, minHeight: "32px", height: "32px" }),
+              placeholder: (p) => ({ ...p, fontSize: "0.875rem" }),
             }}
           />
         </div>
       </div>
 
-      {/* Students Table */}
+      {/* Table */}
       {isLoading ? (
         <div className="text-center py-10">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-2">ডেটা লোড হচ্ছে...</p>
+          <p className="mt-2">Loading...</p>
         </div>
       ) : filteredStudents.length === 0 ? (
         <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-          <svg
-            className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1"
-              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-            ></path>
-          </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-            কোনো শিক্ষার্থী পাওয়া যায়নি
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+            No students found
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            নতুন শিক্ষার্থী যোগ করতে উপরের বাটনে ক্লিক করুন
+            Click “Add Student” to create one.
           </p>
         </div>
       ) : (
@@ -381,27 +306,22 @@ export default function StudentInfo() {
             <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
               <thead className="bg-blue-500 text-sm font-semibold text-white text-center dark:bg-gray-700">
                 <tr>
-                  <th className="py-3 px-4 ">#</th>
-                  <th className="py-3 px-4 ">ছবি</th>
-                  <th className="py-3 px-4 ">নাম</th>
-                  <th className="py-3 px-4 ">রোল</th>
-                  <th className="py-3 px-4 ">শ্রেণী</th>
-                  <th className="py-3 px-4 ">সেকশন</th>
-                  <th className="py-3 px-4 ">অভিভাবক</th>
-                  <th className="py-3 px-4 ">মোবাইল</th>
-                  <th className="py-3 px-4 ">অ্যাকশন</th>
+                  <th className="py-3 px-4">#</th>
+                  <th className="py-3 px-4">Photo</th>
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4">Roll</th>
+                  <th className="py-3 px-4">Class</th>
+                  <th className="py-3 px-4">Section</th>
+                  <th className="py-3 px-4">Guardian</th>
+                  <th className="py-3 px-4">Phone</th>
+                  <th className="py-3 px-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {paginatedStudents.map((student, index) => (
-                  <tr
-                    key={student.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
+                  <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="py-3 px-4 text-center text-gray-500 dark:text-gray-400">
-                      {(pagination.currentPage - 1) * pagination.itemsPerPage +
-                        index +
-                        1}
+                      {(pagination.currentPage - 1) * pagination.itemsPerPage + index + 1}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center">
@@ -433,35 +353,33 @@ export default function StudentInfo() {
                     <td className="py-3 px-4 text-center font-medium text-gray-900 dark:text-gray-100">
                       {student.full_name}
                     </td>
-                    <td className="py-3 px-4 text-center  text-gray-700 dark:text-gray-300">
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                       {student.roll_number}
                     </td>
-
                     <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                       {classMap[student.class_name] || "-"}
                     </td>
-
-                    <td className="py-3 px-4 text-center  text-gray-700 dark:text-gray-300">
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                       {student.section || "-"}
                     </td>
-                    <td className="py-3 px-4 text-center  text-gray-700 dark:text-gray-300">
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                       {student.guardian_name || "-"}
                     </td>
-                    <td className="py-3 px-4 text-center  text-gray-700 dark:text-gray-300">
-                      {student.contact_phone}
+                    <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
+                      {student.contact_phone || "-"}
                     </td>
                     <td className="py-3 flex justify-center items-center px-4 space-x-2">
                       <button
                         onClick={() => handleEdit(student)}
                         className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors dark:bg-blue-500 dark:hover:bg-blue-600"
                       >
-                        এডিট
+                        Edit
                       </button>
                       <button
                         onClick={() => handleDelete(student.id)}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors dark:bg-red-500 dark:hover:bg-red-600"
                       >
-                        ডিলিট
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -479,31 +397,29 @@ export default function StudentInfo() {
                   disabled={pagination.currentPage === 1}
                   className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  পূর্ববর্তী
+                  Previous
                 </button>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 rounded ${
-                        pagination.currentPage === page
-                          ? "bg-blue-600 text-white dark:bg-blue-500"
-                          : "border border-gray-300 dark:border-gray-600"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-1 rounded ${
+                      pagination.currentPage === page
+                        ? "bg-blue-600 text-white dark:bg-blue-500"
+                        : "border border-gray-300 dark:border-gray-600"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
 
                 <button
                   onClick={() => handlePageChange(pagination.currentPage + 1)}
                   disabled={pagination.currentPage === totalPages}
                   className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  পরবর্তী
+                  Next
                 </button>
               </nav>
             </div>
@@ -511,7 +427,7 @@ export default function StudentInfo() {
         </>
       )}
 
-      {/* Student Form Modal */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md relative max-h-[90vh] overflow-y-auto">
@@ -519,52 +435,29 @@ export default function StudentInfo() {
               onClick={resetForm}
               className="absolute top-3 right-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none"
+                   viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
 
             <div className="p-6">
               <h2 className="text-md font-semibold text-center mb-4 text-blue-600 dark:text-blue-400">
-                {isEditing
-                  ? "শিক্ষার্থীর তথ্য এডিট করুন"
-                  : "শিক্ষার্থীর তথ্য ফর্ম"}
+                {isEditing ? "Edit Student" : "Student Form"}
               </h2>
 
               {/* Image Preview */}
               <div className="flex justify-center mb-1">
                 {preview ? (
-                  <img
-                    src={preview}
-                    alt="শিক্ষার্থীর ছবি প্রিভিউ"
-                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-400"
-                  />
+                  <img src={preview} alt="Preview"
+                       className="w-12 h-12 rounded-full object-cover border-2 border-blue-400"/>
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 dark:bg-gray-700">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                   </div>
                 )}
@@ -572,11 +465,10 @@ export default function StudentInfo() {
 
               <form onSubmit={handleSubmit} className="space-y-1">
                 <div className="grid grid-cols-1 gap-1">
-                  {/* Required Fields */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        পূর্ণ নাম <span className="text-red-500">*</span>
+                        Full Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -588,8 +480,8 @@ export default function StudentInfo() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm  font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        রোল নম্বর <span className="text-red-500">*</span>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Roll No. <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -605,21 +497,17 @@ export default function StudentInfo() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        শ্রেণী <span className="text-red-500">*</span>
+                        Class <span className="text-red-500">*</span>
                       </label>
                       <Select
                         options={classOptions}
                         value={classOptions.find(
-                          (option) =>
-                            String(option.value) === String(formData.class_name)
+                          (o) => String(o.value) === String(formData.class_name)
                         )}
-                        onChange={(selectedOption) =>
-                          setFormData({
-                            ...formData,
-                            class_name: selectedOption?.value || "",
-                          })
+                        onChange={(opt) =>
+                          setFormData({ ...formData, class_name: opt?.value || "" })
                         }
-                        placeholder="শ্রেণী নির্বাচন করুন"
+                        placeholder="Select class"
                         className="react-select-container"
                         classNamePrefix="react-select"
                         styles={{
@@ -628,26 +516,17 @@ export default function StudentInfo() {
                             minHeight: "36px",
                             height: "36px",
                             fontSize: "14px",
-                            boxShadow: state.isFocused
-                              ? "0 0 0 1px #3b82f6"
-                              : "none",
-                            borderColor: state.isFocused
-                              ? "#3b82f6"
-                              : "#d1d5db",
-                            "&:hover": {
-                              borderColor: state.isFocused
-                                ? "#3b82f6"
-                                : "#9ca3af",
-                            },
+                            boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
+                            borderColor: state.isFocused ? "#3b82f6" : "#d1d5db",
+                            "&:hover": { borderColor: state.isFocused ? "#3b82f6" : "#9ca3af" },
                           }),
-                          // ... other styles
                         }}
                         required
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        সেকশন
+                        Section
                       </label>
                       <input
                         type="text"
@@ -662,7 +541,7 @@ export default function StudentInfo() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        জন্ম তারিখ
+                        Date of Birth
                       </label>
                       <input
                         type="date"
@@ -674,7 +553,7 @@ export default function StudentInfo() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        মোবাইল নম্বর <span className="text-red-500">*</span>
+                        Phone <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="tel"
@@ -687,10 +566,9 @@ export default function StudentInfo() {
                     </div>
                   </div>
 
-                  {/* Optional Fields */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ইমেইল
+                      Email
                     </label>
                     <input
                       type="email"
@@ -703,7 +581,7 @@ export default function StudentInfo() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ঠিকানা
+                      Address
                     </label>
                     <textarea
                       name="address"
@@ -717,7 +595,7 @@ export default function StudentInfo() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        অভিভাবকের নাম
+                        Guardian Name
                       </label>
                       <input
                         type="text"
@@ -729,7 +607,7 @@ export default function StudentInfo() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        অভিভাবকের মোবাইল
+                        Guardian Phone
                       </label>
                       <input
                         type="tel"
@@ -741,10 +619,9 @@ export default function StudentInfo() {
                     </div>
                   </div>
 
-                  {/* Photo Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ছবি আপলোড করুন
+                      Upload Photo
                     </label>
                     <input
                       type="file"
@@ -754,12 +631,11 @@ export default function StudentInfo() {
                       className="block w-full text-sm text-gray-600 bg-white border border-gray-300 rounded-lg file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-700 dark:file:text-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      JPG, PNG ফরম্যাট (সর্বোচ্চ 2MB)
+                      JPG/PNG up to 2MB.
                     </p>
                   </div>
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -769,32 +645,16 @@ export default function StudentInfo() {
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      প্রক্রিয়াকরণ...
+                      Processing...
                     </span>
                   ) : isEditing ? (
-                    "আপডেট করুন"
+                    "Update"
                   ) : (
-                    "তথ্য সংরক্ষণ করুন"
+                    "Save"
                   )}
                 </button>
               </form>

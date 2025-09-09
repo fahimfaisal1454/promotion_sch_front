@@ -73,6 +73,10 @@ export default function Navbar() {
   <Link to="/teacher/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
     <MdDashboard /><span>Teacher</span>
   </Link>
+) : user.role === "Student" ? (
+   <Link to="/student/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+    <MdDashboard /><span>Student</span>
+  </Link>
 ) : (
   <button onClick={handleLogout} className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700">
     <IoIosLogOut /><span>Logout</span>

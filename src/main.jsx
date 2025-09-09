@@ -58,6 +58,17 @@ import TeacherNotices from "./pages/Teachers/Notices.jsx";
 import MyStudents from "./pages/Teachers/MyStudents.jsx";
 
 
+/* === Student Panel imports (new) === */
+import StudentPanel from "./Layout/StudentPanel.jsx";
+import StudentDashboard from "./pages/Students/Dashboard.jsx";
+import StudentProfile from "./pages/Students/MyProfile.jsx";
+import StudentTimetable from "./pages/Students/MyTimetable.jsx";
+import StudentResults from "./pages/Students/MyResults.jsx";
+import StudentNotices from "./pages/Students/Notices.jsx";
+
+
+
+
 // Define the router
 const router = createBrowserRouter([
   {
@@ -170,6 +181,23 @@ const router = createBrowserRouter([
       { path: "profile", element: <MyProfile /> },
     ],
   },
+
+  // === Student Panel (new) ===
+  {
+  path: "/student",
+  element: (
+    <ProtectedRoute allowedRoles={["Student"]}>
+      <StudentPanel />
+    </ProtectedRoute>
+  ),
+  children: [
+    { path: "dashboard", element: <StudentDashboard /> },
+    { path: "profile", element: <StudentProfile /> },
+    { path: "timetable", element: <StudentTimetable /> },
+    { path: "results", element: <StudentResults /> },
+    { path: "notices", element: <StudentNotices /> },
+  ],
+},
 ]);
 
 // Render to root

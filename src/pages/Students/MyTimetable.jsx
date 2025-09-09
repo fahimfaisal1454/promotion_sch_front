@@ -1,0 +1,38 @@
+import { useEffect, useState } from "react";
+import AxiosInstance from "../../components/AxiosInstance";
+
+export default function MyTimetable(){
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try{
+        const {data} = await AxiosInstance.get("timetable/", { params: { student: "me" } });
+        setRows(Array.isArray(data) ? data : []);
+      }catch(e){ console.error(e); }
+      finally{ setLoading(false); }
+    })();
+  }, []);
+
+  if(loading) return <div className="p-4">Loading…</div>;
+  return (
+    <div className="p-4 space-y-4">
+      <h2 className="text-xl font-semibold">My Timetable</h2>
+      <div className="bg-white border rounded-xl">
+        <div className="grid grid-cols-5 gap-3 p-3 text-sm font-medium bg-slate-50 border-b">
+          <div>Day</div><div>Period</div><div>Subject</div><div>Teacher</div><div>Room</div>
+        </div>
+        {rows.length ? rows.map((r,i)=>(
+          <div key={i} className="grid grid-cols-5 gap-3 p-3 text-sm border-b last:border-b-0">
+            <div>{r.day_of_week_display || r.day_of_week}</div>
+            <div>{r.period}</div>
+            <div>{r.subject_label || r.subject}</div>
+            <div>{r.teacher_label || "-"}</div>
+            <div>{r.room || "-"}</div>
+          </div>
+        )) : <div className="p-4 text-sm text-slate-500">No entries found.</div>}
+      </div>
+    </div>
+  );
+}

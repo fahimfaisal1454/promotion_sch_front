@@ -12,26 +12,48 @@ const About = () => {
   const [loading, setLoading] = useState(true);
   const [loadingPrincipal, setLoadingPrincipal] = useState(true);
 
-  const renderListOrText = (value) => {
-    if (!value) return <p className="text-gray-600">No information available.</p>;
-    let parsed = value;
-    if (typeof value === "string") {
-      try {
-        const maybeJson = JSON.parse(value);
-        if (Array.isArray(maybeJson)) parsed = maybeJson;
-      } catch {}
+const renderListOrText = (value) => {
+  if (!value) {
+    return <p className="text-gray-600">No information available.</p>;
+  }
+
+  let parsed = value;
+
+  // Try to parse JSON if it's a string
+  if (typeof value === "string") {
+    try {
+      const maybeJson = JSON.parse(value);
+      parsed = maybeJson;
+    } catch {
+      // keep as string if not valid JSON
     }
-    if (Array.isArray(parsed)) {
-      return (
-        <ul className="list-disc pl-6 space-y-1 text-gray-700">
-          {parsed.map((item, idx) => (
-            <li key={idx} className="text-justify">{String(item)}</li>
-          ))}
-        </ul>
-      );
-    }
-    return <p className="text-gray-700 text-justify">{String(parsed)}</p>;
-  };
+  }
+
+  // Handle arrays
+  if (Array.isArray(parsed)) {
+    return (
+      <ul className="list-disc pl-6 space-y-1 text-gray-700">
+        {parsed.map((item, idx) => (
+          <li key={idx} className="text-justify">
+            {String(item)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // Handle objects nicely instead of [object Object]
+  if (typeof parsed === "object" && parsed !== null) {
+    return (
+      <pre className="bg-gray-100 p-2 rounded text-sm text-gray-700 overflow-x-auto">
+        {JSON.stringify(parsed, null, 2)}
+      </pre>
+    );
+  }
+
+  // Default: simple text
+  return <p className="text-gray-700 text-justify">{String(parsed)}</p>;
+};
 
   useEffect(() => {
     (async () => {
