@@ -16,7 +16,7 @@ export default function Administration() {
       setMembers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching committee members:", error);
-      setErr("প্রশাসনের তথ্য লোড করতে সমস্যা হয়েছে।");
+      setErr("Failed to load administration information.");
     } finally {
       setLoading(false);
     }
@@ -39,10 +39,10 @@ export default function Administration() {
       <div className="px-6 md:px-10 pt-10">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0a3b68]/10 text-[#0a3b68] text-xs font-semibold">
-            নিবেদিতপ্রাণ নেতৃবৃন্দ
+            Dedicated Leadership
           </div>
           <h2 className="mt-3 text-2xl md:text-3xl font-extrabold text-[#0a3b68] tracking-tight">
-            কলেজ প্রশাসন
+            College Administration
           </h2>
           <div className="mx-auto mt-3 h-1 w-24 rounded-full bg-[#0a3b68]/30" />
         </div>
@@ -74,7 +74,7 @@ export default function Administration() {
             </p>
           ) : members.length === 0 ? (
             <div className="text-center text-gray-700 bg-white/80 border border-gray-200 rounded-xl py-10">
-              কোনো তথ্য পাওয়া যায়নি
+              No data found.
             </div>
           ) : (
             <>
@@ -125,9 +125,6 @@ function AdminCard({ member }) {
 
           {/* Decorative divider */}
           <div className="mt-3 h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-
-          {/* Optional area for future fields (phone/email) */}
-          {/* Keep space minimal so card stays clean */}
         </div>
       </div>
     </div>

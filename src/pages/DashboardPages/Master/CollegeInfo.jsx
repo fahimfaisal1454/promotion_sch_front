@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import AxiosInstance from "../../../components/AxiosInstance";
 import { toast, Toaster } from "react-hot-toast";
 
@@ -31,8 +31,6 @@ export default function InstitutionInfo() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [institutionId, setInstitutionId] = useState(null);
 
-  console.log("InstitutionInfo component rendered", formData);
-
   const urlToFile = async (url) => {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -43,9 +41,7 @@ export default function InstitutionInfo() {
 
   const updateInstitutionState = async (info) => {
     const logoFile = info.logo ? await urlToFile(info.logo) : null;
-    const imageFile = info.institution_image
-      ? await urlToFile(info.institution_image)
-      : null;
+    const imageFile = info.institution_image ? await urlToFile(info.institution_image) : null;
 
     setFormData({
       name: info.name || "",
@@ -69,9 +65,7 @@ export default function InstitutionInfo() {
 
     setFileNames({
       logo: info.logo ? info.logo.split("/").pop() : "",
-      institution_image: info.institution_image
-        ? info.institution_image.split("/").pop()
-        : "",
+      institution_image: info.institution_image ? info.institution_image.split("/").pop() : "",
     });
 
     setIsEditMode(true);
@@ -83,17 +77,13 @@ export default function InstitutionInfo() {
       let res;
       if (institutionId) {
         res = await AxiosInstance.get(`institutions/${institutionId}/`);
-        if (res.data) {
-          updateInstitutionState(res.data);
-        }
+        if (res.data) updateInstitutionState(res.data);
       } else {
         res = await AxiosInstance.get("institutions/");
-        if (res.data.length > 0) {
+        if (Array.isArray(res.data) && res.data.length > 0) {
           updateInstitutionState(res.data[0]);
         }
       }
-
-      console.log("Institution info fetched:", res.data);
     } catch (error) {
       console.error("Error fetching institution info:", error);
     }
@@ -101,6 +91,7 @@ export default function InstitutionInfo() {
 
   useEffect(() => {
     fetchInstitutionInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e) => {
@@ -108,7 +99,6 @@ export default function InstitutionInfo() {
 
     if (files) {
       const file = files[0];
-
       setFormData((prev) => ({ ...prev, [name]: file }));
       setFileNames((prev) => ({ ...prev, [name]: file.name }));
 
@@ -138,16 +128,15 @@ export default function InstitutionInfo() {
     try {
       if (isEditMode && institutionId) {
         await AxiosInstance.patch(`/institutions/${institutionId}/`, data);
-        toast.success("তথ্য সফলভাবে আপডেট হয়েছে");
+        toast.success("Information updated successfully.");
       } else {
         await AxiosInstance.post("/institutions/", data);
-        toast.success("তথ্য সফলভাবে জমা হয়েছে");
+        toast.success("Information submitted successfully.");
       }
-
       fetchInstitutionInfo();
     } catch (error) {
       console.error("Submit error:", error.response?.data || error.message);
-      toast.error("তথ্য জমা দিতে ব্যর্থ হয়েছে");
+      toast.error("Failed to submit information.");
     }
   };
 
@@ -160,48 +149,48 @@ export default function InstitutionInfo() {
           className="max-w-4xl mx-auto bg-white dark:bg-gray-900 p-6 rounded-lg shadow"
         >
           <h2 className="text-2xl font-semibold mb-6 text-center text-blue-800">
-            প্রতিষ্ঠানের তথ্য ফর্ম
+            Institution Information Form
           </h2>
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Column 1 */}
             <div className="space-y-4">
-              {/* প্রতিষ্ঠানের নাম */}
+              {/* Institution Name */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  প্রতিষ্ঠানের নাম*
+                  Institution Name*
                 </label>
                 <input
                   type="text"
                   name="name"
                   required
-                  placeholder="প্রতিষ্ঠানের নাম লিখুন"
+                  placeholder="Enter institution name"
                   value={formData.name}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                 />
               </div>
 
-              {/* সরকারি অনুমোদন নম্বর */}
+              {/* Government Approval Number */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  সরকারি অনুমোদন নম্বর
+                  Government Approval Number
                 </label>
                 <input
                   type="text"
                   name="government_approval_number"
-                  placeholder="অনুমোদন নম্বর লিখুন"
+                  placeholder="Enter approval number"
                   value={formData.government_approval_number}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                 />
               </div>
 
-              {/* সরকারি অনুমোদনের তারিখ */}
+              {/* Government Approval Date */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  সরকারি অনুমোদনের তারিখ
+                  Government Approval Date
                 </label>
                 <input
                   type="date"
@@ -215,46 +204,46 @@ export default function InstitutionInfo() {
 
             {/* Column 2 */}
             <div className="space-y-4">
-              {/* যোগাযোগ ইমেইল */}
+              {/* Contact Email */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  যোগাযোগ ইমেইল*
+                  Contact Email*
                 </label>
                 <input
                   type="email"
                   name="contact_email"
                   required
-                  placeholder="ইমেইল লিখুন"
+                  placeholder="Enter email"
                   value={formData.contact_email}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                 />
               </div>
 
-              {/* যোগাযোগ ফোন নম্বর */}
+              {/* Contact Phone Number */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  যোগাযোগ ফোন নম্বর*
+                  Contact Phone Number*
                 </label>
                 <input
                   type="text"
                   name="contact_phone"
-                  placeholder="ফোন নম্বর লিখুন"
+                  placeholder="Enter phone number"
                   value={formData.contact_phone}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                 />
               </div>
 
-              {/* ঠিকানা কোড */}
+              {/* Address Code */}
               <div>
                 <label className="block text-sm text-black dark:text-gray-300">
-                  ঠিকানা কোড
+                  Address Code
                 </label>
                 <input
                   type="text"
                   name="address_code"
-                  placeholder="ঠিকানা কোড লিখুন"
+                  placeholder="Enter address code"
                   value={formData.address_code}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
@@ -263,16 +252,16 @@ export default function InstitutionInfo() {
             </div>
           </div>
 
-          {/* ঠিকানা (Full Width - 2 Column Span) */}
+          {/* Address (Full Width) */}
           <div className="mt-4 md:col-span-2">
             <label className="block text-sm text-black dark:text-gray-300">
-              ঠিকানা*
+              Address*
             </label>
             <textarea
               name="address"
               rows={1}
               required
-              placeholder="ঠিকানা লিখুন"
+              placeholder="Enter address"
               value={formData.address}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 
@@ -281,15 +270,12 @@ export default function InstitutionInfo() {
             />
           </div>
 
-          {/* Logo + Institution Image (Side by Side in one row) */}
+          {/* Logo + Institution Image */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 md:col-span-2">
             {/* Logo */}
             <div>
-              <label
-                htmlFor="logo"
-                className="block text-sm text-black dark:text-gray-300"
-              >
-                প্রতিষ্ঠানের লোগো
+              <label htmlFor="logo" className="block text-sm text-black dark:text-gray-300">
+                Institution Logo
               </label>
               {existingImages.logoUrl && (
                 <div className="mb-2">
@@ -304,7 +290,7 @@ export default function InstitutionInfo() {
                 id="logo"
                 type="file"
                 name="logo"
-                accept="image/jpeg, image/png, image/jpg , image/webp"
+                accept="image/jpeg, image/png, image/jpg, image/webp"
                 onChange={handleChange}
                 className="block w-full px-3 py-2 mt-1 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg 
                  file:bg-gray-200 file:text-gray-700 file:text-sm file:px-4 file:py-1 file:border-none file:rounded-full 
@@ -320,11 +306,8 @@ export default function InstitutionInfo() {
 
             {/* Institution Image */}
             <div>
-              <label
-                htmlFor="institution_image"
-                className="block text-sm text-black dark:text-gray-300"
-              >
-                প্রতিষ্ঠানের ছবি
+              <label htmlFor="institution_image" className="block text-sm text-black dark:text-gray-300">
+                Institution Image
               </label>
               {existingImages.institutionImageUrl && (
                 <div className="mb-2">
@@ -339,7 +322,7 @@ export default function InstitutionInfo() {
                 id="institution_image"
                 type="file"
                 name="institution_image"
-                accept="image/jpeg, image/png, image/jpg , image/webp"
+                accept="image/jpeg, image/png, image/jpg, image/webp"
                 onChange={handleChange}
                 className="block w-full px-3 py-2 mt-1 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg 
                  file:bg-gray-200 file:text-gray-700 file:text-sm file:px-4 file:py-1 file:border-none file:rounded-full 
@@ -354,45 +337,45 @@ export default function InstitutionInfo() {
             </div>
           </div>
 
-          {/* প্রতিষ্ঠানের লক্ষ্য (Full Width) */}
+          {/* Mission */}
           <div className="mt-4">
             <label className="block text-sm text-black dark:text-gray-300">
-              প্রতিষ্ঠানের লক্ষ্য
+              Mission
             </label>
             <textarea
               name="mission"
               rows={3}
-              placeholder="প্রতিষ্ঠানের লক্ষ্য লিখুন"
+              placeholder="Enter mission"
               value={formData.mission}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
             />
           </div>
 
-          {/* প্রতিষ্ঠানের উদ্দেশ্য (Full Width) */}
+          {/* Objectives */}
           <div className="mt-4">
             <label className="block text-sm text-black dark:text-gray-300">
-              প্রতিষ্ঠানের উদ্দেশ্য
+              Objectives
             </label>
             <textarea
               name="objective"
               rows={3}
-              placeholder="প্রতিষ্ঠানের উদ্দেশ্য লিখুন"
+              placeholder="Enter objectives"
               value={formData.objective}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
             />
           </div>
 
-          {/* প্রতিষ্ঠানের ইতিহাস (Full Width) */}
+          {/* History */}
           <div className="mt-4">
             <label className="block text-sm text-black dark:text-gray-300">
-              প্রতিষ্ঠানের ইতিহাস
+              History
             </label>
             <textarea
               name="history"
               rows={3}
-              placeholder="প্রতিষ্ঠানের ইতিহাস লিখুন"
+              placeholder="Enter history"
               value={formData.history}
               onChange={handleChange}
               className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
@@ -405,7 +388,7 @@ export default function InstitutionInfo() {
               type="submit"
               className="w-full md:w-auto px-6 bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 rounded-md transition duration-300 text-sm"
             >
-              {isEditMode ? "আপডেট করুন" : "সাবমিট করুন"}
+              {isEditMode ? "Update" : "Submit"}
             </button>
           </div>
         </form>

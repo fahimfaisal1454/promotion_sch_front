@@ -31,13 +31,13 @@ export default function Notice() {
           return {
             rawDate: rawDate ? rawDate.getTime() : 0,
             dateLabel: rawDate
-              ? rawDate.toLocaleDateString("bn-BD", {
+              ? rawDate.toLocaleDateString("en-US", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
                 })
-              : "তারিখ নেই",
-            title: n.title || "শিরোনাম নেই",
+              : "No date",
+            title: n.title || "No title",
             downloadLink: n.pdf_file,
             category: n.category || "Notice",
             description: n.description || "",
@@ -45,7 +45,6 @@ export default function Notice() {
         });
 
         normalized.sort((a, b) => b.rawDate - a.rawDate);
-
         setNotices(normalized);
       } catch (e) {
         console.error("Error fetching notices:", e);
@@ -85,10 +84,10 @@ export default function Notice() {
           {/* Header */}
           <div className="bg-gradient-to-r from-green-700 to-green-600 px-6 py-6 rounded-t-2xl">
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center tracking-wide">
-              নোটিশ বোর্ড
+              Notice Board
             </h1>
             <p className="text-white/80 text-center mt-1">
-              সর্বশেষ নোটিশগুলো এখানে পাওয়া যাবে (সর্বশেষ আগে দেখানো হচ্ছে)
+              Latest notices appear first.
             </p>
           </div>
 
@@ -99,7 +98,7 @@ export default function Notice() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
-                placeholder="নোটিশ খুঁজুন..."
+                placeholder="Search notices…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 
@@ -127,7 +126,7 @@ export default function Notice() {
                     value={c}
                     className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                   >
-                    {c === "All" ? "সব ক্যাটেগরি" : c}
+                    {c === "All" ? "All categories" : c}
                   </option>
                 ))}
               </select>
@@ -174,13 +173,13 @@ export default function Notice() {
                       ) : (
                         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400 italic flex items-center gap-1">
                           <FileText className="w-4 h-4" />
-                          বিবরণ সংযুক্ত নেই
+                          No description attached
                         </p>
                       )}
 
                       <div className="mt-4 flex items-center justify-between">
                         <div className="text-xs text-slate-500 dark:text-slate-400">
-                          সর্বশেষ হালনাগাদ: <span className="font-medium">{n.dateLabel}</span>
+                          Last updated: <span className="font-medium">{n.dateLabel}</span>
                         </div>
 
                         {n.downloadLink ? (
@@ -192,10 +191,12 @@ export default function Notice() {
                                        text-white text-sm font-medium hover:bg-[#0a2068] transition-colors"
                           >
                             <Download className="w-4 h-4" />
-                            ডাউনলোড
+                            Download
                           </a>
                         ) : (
-                          <span className="text-xs text-slate-400 dark:text-slate-500">ফাইল সংযুক্ত নেই</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
+                            No file attached
+                          </span>
                         )}
                       </div>
                     </div>
@@ -296,10 +297,10 @@ function EmptyState() {
         <FileText className="h-7 w-7 text-slate-400" />
       </div>
       <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-        কোনো ফলাফল পাওয়া যায়নি
+        No results found
       </h3>
       <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-        সার্চ টার্ম বা ক্যাটেগরি পরিবর্তন করে আবার চেষ্টা করুন।
+        Try changing the search term or category.
       </p>
     </div>
   );

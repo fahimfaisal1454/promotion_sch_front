@@ -33,14 +33,14 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.email.trim() && !formData.phone.trim()) {
-      setStatus('❌ অনুগ্রহ করে ইমেইল অথবা ফোন নম্বর প্রদান করুন।');
+      setStatus('❌ Please provide an email or phone number.');
       return;
     }
 
-    setStatus('পাঠানো হচ্ছে...');
+    setStatus('Sending…');
     try {
       await AxiosInstance.post('contacts/', formData);
-      setStatus('✅ মেসেজ সফলভাবে পাঠানো হয়েছে!');
+      setStatus('✅ Message sent successfully!');
       setFormData({
         name: '',
         email: '',
@@ -48,8 +48,8 @@ export default function Contact() {
         message: '',
       });
     } catch (error) {
-      console.error('❌ মেসেজ পাঠাতে সমস্যা:', error);
-      setStatus('❌ দুঃখিত, মেসেজ পাঠানো যায়নি। পরে চেষ্টা করুন।');
+      console.error('❌ Failed to send message:', error);
+      setStatus('❌ Sorry, the message could not be sent. Please try again later.');
     }
   };
 
@@ -58,7 +58,7 @@ export default function Contact() {
       {/* Title */}
       <div className="text-center mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-[#0a3b68] border-b-4 border-[#0a3b68] inline-block px-4 pb-1">
-          যোগাযোগ করুন
+          Contact Us
         </h1>
         <p className="text-sm text-gray-700 mt-1">
           {institute?.name || 'School'}, {institute?.address || 'School Address'}
@@ -74,31 +74,31 @@ export default function Contact() {
           </div>
           <div className="mb-3">
             <h2 className="inline-block bg-lime-900 px-3 py-1 rounded text-white text-xs font-bold">
-              যোগাযোগের তথ্য
+              Contact Information
             </h2>
           </div>
 
           <div className="space-y-3 text-xs text-gray-800">
             <div>
               <FaMapMarkerAlt className="text-yellow-500 mx-auto mb-1" />
-              <p className="font-semibold">ঠিকানা</p>
+              <p className="font-semibold">Address</p>
               <p>{institute?.name}</p>
               <p>{institute?.address}</p>
             </div>
             <div>
               <FaPhone className="text-yellow-500 mx-auto mb-1" />
-              <p className="font-semibold">ফোন</p>
+              <p className="font-semibold">Phone</p>
               <p>{institute?.contact_phone || '—'}</p>
             </div>
             <div>
               <FaEnvelope className="text-yellow-500 mx-auto mb-1" />
-              <p className="font-semibold">ইমেইল</p>
+              <p className="font-semibold">Email</p>
               <p>{institute?.contact_email || '—'}</p>
             </div>
             <div>
               <FaClock className="text-yellow-500 mx-auto mb-1" />
-              <p className="font-semibold">অফিস সময়</p>
-              <p>রবি - বৃহঃ: সকাল ৯টা - বিকেল ৫টা</p>
+              <p className="font-semibold">Office Hours</p>
+              <p>Sun - Thu: 9:00 AM - 5:00 PM</p>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function Contact() {
           </div>
           <div className="text-center mb-3">
             <h2 className="inline-block bg-lime-900 px-3 py-1 rounded text-white text-xs font-bold">
-              যোগাযোগ ফর্ম
+              Contact Form
             </h2>
           </div>
 
@@ -120,7 +120,7 @@ export default function Contact() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="আপনার নাম"
+              placeholder="Your name"
               required
               className="border border-gray-300 rounded px-2 py-1 outline-none"
             />
@@ -129,7 +129,7 @@ export default function Contact() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="আপনার ইমেইল (ঐচ্ছিক)"
+              placeholder="Your email (optional)"
               className="border border-gray-300 rounded px-2 py-1 outline-none"
             />
             <input
@@ -137,14 +137,14 @@ export default function Contact() {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="আপনার ফোন নম্বর (ঐচ্ছিক)"
+              placeholder="Your phone (optional)"
               className="border border-gray-300 rounded px-2 py-1 outline-none"
             />
             <textarea
               name="message"
               value={formData.message}
               onChange={handleChange}
-              placeholder="আপনার বার্তা"
+              placeholder="Your message"
               rows={3}
               required
               className="border border-gray-300 rounded px-2 py-1 outline-none"
@@ -153,7 +153,7 @@ export default function Contact() {
               type="submit"
               className="bg-[#0a3b68] text-white hover:bg-[#072f53] font-semibold py-1 rounded-sm transition"
             >
-              পাঠান
+              Send
             </button>
           </form>
 

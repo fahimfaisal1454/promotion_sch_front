@@ -46,12 +46,12 @@ export default function CollegeOverview() {
   const teacherCount = Array.isArray(teachers) ? teachers.length : 0;
 
   const usefulLinks = [
-    { name: "সরকারি শিক্ষা অফিস", url: "https://www.dshe.gov.bd/", tag: "Official" },
-    { name: "যশোর শিক্ষা বোর্ড", url: "https://www.jessoreboard.gov.bd/", tag: "Board" },
-    { name: "শিক্ষা মন্ত্রণালয়", url: "https://moedu.gov.bd/", tag: "Gov" },
-    { name: "জেলা শিক্ষা অফিস", url: "https://jessore.gov.bd/" },
-    { name: "এডুকেশন ম্যানেজমেন্ট ইনফরমেশন সিস্টেম (EMIS)", url: "https://emis.gov.bd/" },
-    { name: "বাংলাদেশ শিক্ষা তথ্য ও পরিসংখ্যান ব্যুরো (BANBEIS)", url: "https://banbeis.gov.bd/" },
+    { name: "Directorate of Secondary & Higher Education", url: "https://www.dshe.gov.bd/", tag: "Official" },
+    { name: "Board of Intermediate & Secondary Education, Jashore", url: "https://www.jessoreboard.gov.bd/", tag: "Board" },
+    { name: "Ministry of Education", url: "https://moedu.gov.bd/", tag: "Gov" },
+    { name: "Jessore District Education Office", url: "https://jessore.gov.bd/" },
+    { name: "Education Management Information System (EMIS)", url: "https://emis.gov.bd/" },
+    { name: "BANBEIS (Education Info & Statistics)", url: "https://banbeis.gov.bd/" },
   ];
 
   return (
@@ -74,32 +74,32 @@ export default function CollegeOverview() {
               {instituteInfo?.name || "Institution Name"}
             </h2>
             <p className="text-xs text-gray-500">
-              প্রতিষ্ঠিত: {instituteInfo?.government_approval_date || "####"}
+              Established: {instituteInfo?.government_approval_date || "####"}
             </p>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-[#0A3B68] mb-1">
-              প্রতিষ্ঠানের ইতিহাস
+              Institution History
             </h3>
             <p className="text-sm text-gray-700 leading-relaxed text-justify">
               {instituteInfo?.history ||
-                "সময়ের চাহিদা অনুযায়ী নৈতিক, সৃজনশীল ও নেতৃত্বের শিক্ষার্থীদের গড়ে তোলা..."}
+                "In line with the needs of the times, we nurture students with ethics, creativity, and leadership..."}
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-3 text-center mt-6">
             <div className="bg-white rounded-lg p-2 shadow-sm">
               <h4 className="text-[#0A3B68] font-bold">{totalYears}+</h4>
-              <p className="text-xs text-gray-600">বছরের গর্ব</p>
+              <p className="text-xs text-gray-600">Years of Pride</p>
             </div>
             <div className="bg-white rounded-lg p-2 shadow-sm">
               <h4 className="text-[#0A3B68] font-bold">{teacherCount}+</h4>
-              <p className="text-xs text-gray-600">শিক্ষকগণ</p>
+              <p className="text-xs text-gray-600">Teachers</p>
             </div>
             <div className="bg-white rounded-lg p-2 shadow-sm">
               <h4 className="text-[#0A3B68] font-bold">100%</h4>
-              <p className="text-xs text-gray-600">মূল্যবোধে অঙ্গীকার</p>
+              <p className="text-xs text-gray-600">Commitment to Values</p>
             </div>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function CollegeOverview() {
         {/* Administration Card */}
         <div className="bg-white/60 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl p-6 overflow-y-auto">
           <h2 className="text-xl font-bold text-[#0A3B68] mb-4 text-center border-b pb-2">
-            কলেজ প্রশাসন
+            College Administration
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {members.map((member, index) => (
@@ -135,7 +135,7 @@ export default function CollegeOverview() {
         {/* Principal Message Card */}
         <div className="bg-white/60 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl p-6 flex flex-col justify-between">
           <h2 className="text-xl font-bold text-[#0A3B68] text-center mb-4 border-b pb-2">
-            প্রধান শিক্ষকের বার্তা
+            Principal’s Message
           </h2>
 
           <div className="flex justify-center mb-4">
@@ -150,11 +150,11 @@ export default function CollegeOverview() {
           </div>
 
           <blockquote className="text-sm italic text-gray-700 border-l-4 pl-4 border-blue-400">
-            “{principal?.message || "প্রধান শিক্ষকের বার্তা লোড হচ্ছে..."}”
+            “{principal?.message || "Loading principal’s message..."}”
           </blockquote>
 
           <p className="font-semibold text-[#0A3B68] text-right mt-4 text-sm">
-            - {principal?.full_name || "প্রধান শিক্ষকের নাম"}
+            - {principal?.full_name || "Principal’s name"}
           </p>
         </div>
       </div>
@@ -163,10 +163,10 @@ export default function CollegeOverview() {
       <div className="max-w-7xl mx-auto mt-12 px-4">
         <div className="text-center mb-6">
           <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0A3B68]">
-            প্রয়োজনীয় ওয়েবসাইটসমূহ
+            Useful Websites
           </h2>
           <p className="mt-2 text-sm md:text-base text-gray-600">
-            দ্রুত প্রবেশের জন্য গুরুত্বপূর্ণ লিঙ্কগুলো
+            Quick access to important links
           </p>
         </div>
 
@@ -230,7 +230,7 @@ export default function CollegeOverview() {
                   </div>
                   <div className="mt-5 flex items-center justify-between">
                     <span className="text-[13px] font-medium text-[#0A3B68]/80 group-hover:text-[#0A3B68] transition-colors">
-                      ক্লিক করুন
+                      Open
                     </span>
                     <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-[#0A3B68] transition-colors" />
                   </div>

@@ -4,9 +4,10 @@ import defaultImage from "../../images/person.PNG";
 import { FaWindowClose } from "react-icons/fa";
 
 const TEACHERS_API = "teachers/";
-const STAFF_API = "staff/"; // adjust if needed
+const STAFF_API = "staff"; // adjust if needed (removed trailing slash to match your pattern)
 
 /* ------------------ Intro formatting helpers ------------------ */
+// Bangla labels kept for parsing incoming data
 const INTRO_LABELS = [
   "জন্ম তারিখ",
   "ইনডেক্স নং",
@@ -17,6 +18,18 @@ const INTRO_LABELS = [
   "পে-কোড",
   "বর্তমান প্রতিষ্ঠানের যোগদানের তারিখ",
 ];
+
+// English display labels for the above Bangla keys
+const DISPLAY_LABELS = {
+  "জন্ম তারিখ": "Date of Birth",
+  "ইনডেক্স নং": "Index No.",
+  "শিক্ষাগত যোগ্যতা": "Educational Qualification",
+  "১ম যোগদান": "First Joining",
+  "MPO ভুক্তির তারিখ": "MPO Enrollment Date",
+  "পে কোড": "Pay Code",
+  "পে-কোড": "Pay Code",
+  "বর্তমান প্রতিষ্ঠানের যোগদানের তারিখ": "Current Institution Joining Date",
+};
 
 function formatIntroToLines(raw = "") {
   if (!raw || typeof raw !== "string") return [];
@@ -42,12 +55,13 @@ function formatIntroToLines(raw = "") {
 
 function renderIntro(lines) {
   return lines.map((line, i) => {
-    const label = INTRO_LABELS.find((l) => line.startsWith(l));
-    if (label) {
-      const value = line.slice(label.length).replace(/^:\s*/, "");
+    const labelBn = INTRO_LABELS.find((l) => line.startsWith(l));
+    if (labelBn) {
+      const value = line.slice(labelBn.length).replace(/^:\s*/, "");
+      const labelEn = DISPLAY_LABELS[labelBn] || labelBn;
       return (
         <p key={i} className="leading-6">
-          <span className="font-semibold">{label}:</span>{" "}
+          <span className="font-semibold">{labelEn}:</span>{" "}
           {value || "—"}
         </p>
       );
@@ -86,7 +100,7 @@ export default function Faculty() {
         setTeachers(res.data || []);
       } catch (e) {
         console.error(e);
-        setErrorTeachers("শিক্ষকদের তথ্য লোড করতে সমস্যা হয়েছে।");
+        setErrorTeachers("Failed to load teachers.");
       } finally {
         setLoadingTeachers(false);
       }
@@ -98,7 +112,7 @@ export default function Faculty() {
         setStaff(res.data || []);
       } catch (e) {
         console.error(e);
-        setErrorStaff("স্টাফদের তথ্য লোড করতে সমস্যা হয়েছে।");
+        setErrorStaff("Failed to load staff.");
       } finally {
         setLoadingStaff(false);
       }
@@ -153,17 +167,17 @@ export default function Faculty() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  const subjectLabel = "বিষয়"; // only used for teachers
+  const subjectLabel = "Subject"; // teachers only
 
   return (
     <div className="px-4 py-8 bg-[#f6f7fb] min-h-screen text-black">
       {/* Header */}
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 mb-4">
         <h1 className="text-xl sm:text-2xl font-bold text-[#0a3b68]">
-          শিক্ষক ও কর্মচারী তালিকা ২০২৫
+          Teachers & Staff List 2025
         </h1>
         <span className="text-sm text-gray-600">
-          মোট {activeTab === "teachers" ? teachers.length : staff.length} জন
+          Total {activeTab === "teachers" ? teachers.length : staff.length} people
         </span>
       </div>
 
@@ -180,7 +194,7 @@ export default function Faculty() {
                   : "bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
-              শিক্ষকবৃন্দ ({teachers.length})
+              Teachers ({teachers.length})
             </button>
             <button
               onClick={() => setActiveTab("staff")}
@@ -190,7 +204,7 @@ export default function Faculty() {
                   : "bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
-              কর্মচারীবৃন্দ ({staff.length})
+              Staff ({staff.length})
             </button>
           </div>
 
@@ -201,7 +215,7 @@ export default function Faculty() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="নাম/পদবি/বিষয়/দায়িত্ব দিয়ে খুঁজুন…"
+              placeholder="Search by name/designation/subject/department…"
               className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 pe-9 text-sm outline-none focus:ring-2 focus:ring-[#0a3b68]"
               aria-label="Search people"
             />
@@ -225,7 +239,7 @@ export default function Faculty() {
             className="h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0a3b68]"
             aria-label="Filter by designation"
           >
-            <option value="">সকল পদবি</option>
+            <option value="">All designations</option>
             {designations.map((d) => (
               <option key={d} value={d}>
                 {d}
@@ -241,7 +255,7 @@ export default function Faculty() {
             }}
             className="h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm hover:bg-gray-50"
           >
-            রিসেট
+            Reset
           </button>
         </div>
       </div>
@@ -256,10 +270,10 @@ export default function Faculty() {
       {/* Loading / Empty / Grid */}
       <div className="max-w-7xl mx-auto">
         {loading ? (
-          <p className="text-center text-lg">লোড হচ্ছে...</p>
+          <p className="text-center text-lg">Loading...</p>
         ) : filtered.length === 0 ? (
           <div className="text-center text-gray-600 bg-white border border-gray-200 rounded-xl py-10">
-            কোনো তথ্য পাওয়া যায়নি
+            No data found.
           </div>
         ) : (
           <>
@@ -286,7 +300,7 @@ export default function Faculty() {
                   disabled={page === 1}
                   className="px-3 py-1 h-9 rounded border border-gray-300 bg-white disabled:opacity-50"
                 >
-                  পূর্ববর্তী
+                  Previous
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                   <button
@@ -306,7 +320,7 @@ export default function Faculty() {
                   disabled={page === totalPages}
                   className="px-3 py-1 h-9 rounded border border-gray-300 bg-white disabled:opacity-50"
                 >
-                  পরবর্তী
+                  Next
                 </button>
               </div>
             )}
@@ -374,7 +388,7 @@ function PersonCard({
               onClick={() => setIsModalOpen(isModalOpen === id ? null : id)}
               className="bg-[#0a3b68] text-white px-3 py-1 rounded text-xs hover:opacity-90"
             >
-              শিক্ষক পরিচিতি
+              Teacher Intro
             </button>
 
             {isModalOpen === id && (
@@ -388,7 +402,7 @@ function PersonCard({
                   <div className="text-sm text-gray-800 break-words text-left space-y-1">
                     {introLines.length > 0
                       ? renderIntro(introLines)
-                      : <p>তথ্য প্রদান করা হয়নি।</p>}
+                      : <p>No information provided.</p>}
                   </div>
                 </div>
                 <div className="mt-2 flex justify-center">
@@ -415,11 +429,11 @@ function PersonCard({
             </p>
           )}
           <p className="flex gap-1">
-            <span className="font-semibold">ফোন:</span>
+            <span className="font-semibold">Phone:</span>
             <span className="truncate">{contact_phone || "—"}</span>
           </p>
           <p className="flex gap-1">
-            <span className="font-semibold">ইমেইল:</span>
+            <span className="font-semibold">Email:</span>
             <span className="truncate">{contact_email || "—"}</span>
           </p>
         </div>

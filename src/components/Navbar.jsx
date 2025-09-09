@@ -37,15 +37,15 @@ export default function Navbar() {
   }, []);
 
   const navItems = [
-    { path: "/", label: "হোম" },
-    { path: "/about", label: "আমাদের সম্পর্কে" },
-    { path: "/acknowledgment", label: "স্বীকৃতি পত্র" },
-    { path: "/routine", label: "রুটিন" },
-    { path: "/result", label: "ফলাফল" },
-    { path: "/facnstaff", label: "শিক্ষক ও কর্মচারী" },
-    { path: "/gallery", label: "গ্যালারি" },
-    { path: "/notice", label: "নোটিশ" },
-    { path: "/contact", label: "যোগাযোগ" },
+    { path: "/", label: "Home" },
+    { path: "/about", label: "About Us" },
+    { path: "/acknowledgment", label: "Accreditation" },
+    { path: "/routine", label: "Routine" },
+    { path: "/result", label: "Results" },
+    { path: "/facnstaff", label: "Faculty & Staff" },
+    { path: "/gallery", label: "Gallery" },
+    { path: "/notice", label: "Notices" },
+    { path: "/contact", label: "Contact" },
   ];
 
   return (
@@ -61,28 +61,27 @@ export default function Navbar() {
               <a href="#" className="hover:text-green-700"><FaLinkedinIn /></a>
             </div>
             <div className="h-4 w-px bg-black/10" />
-         {!user ? (
-  <Link to="/login" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-    <FaUserAlt /><span>Login</span>
-  </Link>
-) : user.role === "Admin" ? (
-  <Link to="/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-    <MdDashboard /><span>Dashboard</span>
-  </Link>
-) : user.role === "Teacher" ? (
-  <Link to="/teacher/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-    <MdDashboard /><span>Teacher</span>
-  </Link>
-) : user.role === "Student" ? (
-   <Link to="/student/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
-    <MdDashboard /><span>Student</span>
-  </Link>
-) : (
-  <button onClick={handleLogout} className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700">
-    <IoIosLogOut /><span>Logout</span>
-  </button>
-)}
-
+            {!user ? (
+              <Link to="/login" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+                <FaUserAlt /><span>Login</span>
+              </Link>
+            ) : user.role === "Admin" ? (
+              <Link to="/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+                <MdDashboard /><span>Dashboard</span>
+              </Link>
+            ) : user.role === "Teacher" ? (
+              <Link to="/teacher/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+                <MdDashboard /><span>Teacher</span>
+              </Link>
+            ) : user.role === "Student" ? (
+              <Link to="/student/dashboard" className="flex items-center space-x-1 text-sm font-medium hover:text-green-700">
+                <MdDashboard /><span>Student</span>
+              </Link>
+            ) : (
+              <button onClick={handleLogout} className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700">
+                <IoIosLogOut /><span>Logout</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -106,7 +105,7 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Desktop Nav (button-style, compact) */}
+            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-2 text-sm font-semibold">
               {navItems.map(({ path, label }) => (
                 <NavLink
@@ -115,10 +114,10 @@ export default function Navbar() {
                   className={({ isActive }) =>
                     [
                       "inline-flex items-center justify-center",
-                      "h-9 px-3",                  // compact height + padding
-                      "rounded-md leading-none",   // fixes line-height growth
+                      "h-9 px-3",
+                      "rounded-md leading-none",
                       "transition-colors duration-200",
-                      "ring-1 shadow-[0_1px_1.5px_rgba(0,0,0,0.06)]", // subtle elevation
+                      "ring-1 shadow-[0_1px_1.5px_rgba(0,0,0,0.06)]",
                       isActive
                         ? "bg-green-700 text-white ring-green-800/50"
                         : "bg-white text-green-700 ring-green-300 hover:bg-green-50 hover:text-green-900"

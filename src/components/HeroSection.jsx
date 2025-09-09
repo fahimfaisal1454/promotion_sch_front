@@ -39,7 +39,7 @@ export default function HeroSection() {
         <>
           <img
             src={bgImage}
-            alt={instituteInfo?.name}
+            alt={instituteInfo?.name || "Institution background"}
             className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-500 ${
               imgLoaded ? "opacity-100" : "opacity-0"
             }`}
@@ -68,7 +68,7 @@ export default function HeroSection() {
             {instituteInfo?.name}
           </h1>
           <p className="text-lg md:text-xl text-gray-200">
-            শিক্ষার আলো ছড়ানোর দৃঢ় প্রত্যয়ে আমরা নিরলসভাবে কাজ করে যাচ্ছি।
+            With a steadfast commitment to spreading the light of education, we work tirelessly.
           </p>
         </div>
       </div>

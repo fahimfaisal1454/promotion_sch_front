@@ -12,48 +12,48 @@ const About = () => {
   const [loading, setLoading] = useState(true);
   const [loadingPrincipal, setLoadingPrincipal] = useState(true);
 
-const renderListOrText = (value) => {
-  if (!value) {
-    return <p className="text-gray-600">No information available.</p>;
-  }
-
-  let parsed = value;
-
-  // Try to parse JSON if it's a string
-  if (typeof value === "string") {
-    try {
-      const maybeJson = JSON.parse(value);
-      parsed = maybeJson;
-    } catch {
-      // keep as string if not valid JSON
+  const renderListOrText = (value) => {
+    if (!value) {
+      return <p className="text-gray-600">No information available.</p>;
     }
-  }
 
-  // Handle arrays
-  if (Array.isArray(parsed)) {
-    return (
-      <ul className="list-disc pl-6 space-y-1 text-gray-700">
-        {parsed.map((item, idx) => (
-          <li key={idx} className="text-justify">
-            {String(item)}
-          </li>
-        ))}
-      </ul>
-    );
-  }
+    let parsed = value;
 
-  // Handle objects nicely instead of [object Object]
-  if (typeof parsed === "object" && parsed !== null) {
-    return (
-      <pre className="bg-gray-100 p-2 rounded text-sm text-gray-700 overflow-x-auto">
-        {JSON.stringify(parsed, null, 2)}
-      </pre>
-    );
-  }
+    // Try to parse JSON if it's a string
+    if (typeof value === "string") {
+      try {
+        const maybeJson = JSON.parse(value);
+        parsed = maybeJson;
+      } catch {
+        // keep as string if not valid JSON
+      }
+    }
 
-  // Default: simple text
-  return <p className="text-gray-700 text-justify">{String(parsed)}</p>;
-};
+    // Handle arrays
+    if (Array.isArray(parsed)) {
+      return (
+        <ul className="list-disc pl-6 space-y-1 text-gray-700">
+          {parsed.map((item, idx) => (
+            <li key={idx} className="text-justify">
+              {String(item)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    // Handle objects nicely instead of [object Object]
+    if (typeof parsed === "object" && parsed !== null) {
+      return (
+        <pre className="bg-gray-100 p-2 rounded text-sm text-gray-700 overflow-x-auto">
+          {JSON.stringify(parsed, null, 2)}
+        </pre>
+      );
+    }
+
+    // Default: simple text
+    return <p className="text-gray-700 text-justify">{String(parsed)}</p>;
+  };
 
   useEffect(() => {
     (async () => {
@@ -164,7 +164,7 @@ const renderListOrText = (value) => {
             {/* Text below image */}
             <div className="w-full" data-aos="fade-up">
               <h1 className="text-2xl font-bold text-gray-800 py-2">
-                বিদ্যালয়ের ইতিহাস
+                School History
               </h1>
               <p className="mb-0 leading-relaxed text-gray-700 text-justify">
                 {schoolInfo.history || "No history available."}
@@ -183,11 +183,11 @@ const renderListOrText = (value) => {
         >
           <div className="grid md:grid-cols-2 gap-8">
             <div data-aos="fade-right">
-              <h3 className="text-2xl font-bold text-gray-800 mb-4">আমাদের মিশন</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">Our Mission</h3>
               <div className="leading-relaxed">{renderListOrText(missionValue)}</div>
             </div>
             <div data-aos="fade-left">
-              <h3 className="text-2xl font-bold text-gray-800 mb-4">আমাদের উদ্দেশ্য</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">Our Objectives</h3>
               <div className="leading-relaxed">{renderListOrText(objectivesValue)}</div>
             </div>
           </div>
@@ -196,12 +196,12 @@ const renderListOrText = (value) => {
         {/* Spacer */}
         <div className="h-8" />
 
-        {/* Card 2: Principal message (kept as-is) */}
+        {/* Card 2: Principal message */}
         <div
           className="rounded-2xl border border-dustyrose/20 bg-white/70 shadow-sm p-6 md:p-8"
           data-aos="fade-up"
         >
-          <h3 className="text-2xl font-bold text-gray-800 mb-6">প্রধান শিক্ষকের বার্তা</h3>
+          <h3 className="text-2xl font-bold text-gray-800 mb-6">Principal's Message</h3>
 
           {loadingPrincipal ? (
             <div className="text-gray-600">Loading principal info…</div>
