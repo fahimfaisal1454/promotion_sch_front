@@ -4,6 +4,12 @@ import Select from "react-select";
 import { Toaster, toast } from "react-hot-toast";
 import axiosInstance from "../../../components/AxiosInstance";
 
+const Chip = ({ children }) => (
+  <span className="inline-flex items-center justify-center h-6 px-2 text-xs rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 mr-1">
+    {children}
+  </span>
+);
+
 export default function AddSubject() {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -15,7 +21,9 @@ export default function AddSubject() {
   const [currentId, setCurrentId] = useState(null);
   const [form, setForm] = useState({
     name: "",
-    class_name: "", // class id
+    // create uses class_ids (multi), edit uses class_name (single)
+    class_ids: [],
+    class_name: "",
     is_theory: true,
     is_practical: false,
   });
@@ -71,6 +79,7 @@ export default function AddSubject() {
   const openCreate = () => {
     setForm({
       name: "",
+      class_ids: [],
       class_name: "",
       is_theory: true,
       is_practical: false,
@@ -83,6 +92,7 @@ export default function AddSubject() {
   const openEdit = (row) => {
     setForm({
       name: row.name || "",
+      class_ids: [], // unused in edit
       class_name: row.class_name || "",
       is_theory: !!row.is_theory,
       is_practical: !!row.is_practical,
@@ -94,23 +104,64 @@ export default function AddSubject() {
 
   const save = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) return toast.error("Subject name is required");
-    if (!form.class_name) return toast.error("Please select a class");
+    const nameTrim = form.name.trim();
+    if (!nameTrim) return toast.error("Subject name is required");
 
     try {
-      const payload = {
-        name: form.name.trim(),
-        class_name: form.class_name,
-        is_theory: !!form.is_theory,
-        is_practical: !!form.is_practical,
-      };
       if (isEditing) {
+        // single update path (existing API)
+        if (!form.class_name) return toast.error("Please select a class");
+        const payload = {
+          name: nameTrim,
+          class_name: form.class_name,
+          is_theory: !!form.is_theory,
+          is_practical: !!form.is_practical,
+        };
         await axiosInstance.put(`subjects/${currentId}/`, payload);
         toast.success("Subject updated");
       } else {
-        await axiosInstance.post("subjects/", payload);
-        toast.success("Subject created");
+        // multi-create path: create the same subject for multiple classes
+        if (!form.class_ids.length) {
+          return toast.error("Please select at least one class");
+        }
+
+        // prevent duplicates: (subject name, class) pair
+        const existingByClass = new Map();
+        for (const s of subjects) {
+          const key = `${String(s.class_name)}::${(s.name || "").toLowerCase()}`;
+          existingByClass.set(key, true);
+        }
+
+        const targets = form.class_ids
+          .map((opt) => opt?.value)
+          .filter(Boolean);
+
+        // Filter out ones that already exist (case-insensitive name match)
+        const toCreate = targets.filter((cid) => {
+          const key = `${String(cid)}::${nameTrim.toLowerCase()}`;
+          return !existingByClass.has(key);
+        });
+
+        if (toCreate.length === 0) {
+          toast("Nothing to create — all selected classes already have this subject.", { icon: "ℹ️" });
+        } else {
+          const payloads = toCreate.map((cid) => ({
+            name: nameTrim,
+            class_name: cid, // API expects single class id field
+            is_theory: !!form.is_theory,
+            is_practical: !!form.is_practical,
+          }));
+
+          await Promise.all(
+            payloads.map((p) => axiosInstance.post("subjects/", p))
+          );
+          const skipped = targets.length - toCreate.length;
+          toast.success(
+            `Created ${toCreate.length} ${toCreate.length > 1 ? "subjects" : "subject"}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? "s" : ""}` : ""}`
+          );
+        }
       }
+
       setIsModalOpen(false);
       await loadAll();
     } catch (e) {
@@ -179,39 +230,23 @@ export default function AddSubject() {
         <table className="min-w-full">
           <thead className="bg-slate-100">
             <tr>
-              <th className="px-3 py-2 text-left text-sm text-slate-600 w-16">
-                #
-              </th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">
-                Subject
-              </th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">
-                Class
-              </th>
-              <th className="px-3 py-2 text-left text-sm text-slate-600">
-                Type
-              </th>
-              <th className="px-3 py-2 text-right text-sm text-slate-600 w-44">
-                Actions
-              </th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600 w-16">#</th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">Subject</th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">Class</th>
+              <th className="px-3 py-2 text-left text-sm text-slate-600">Type</th>
+              <th className="px-3 py-2 text-right text-sm text-slate-600 w-44">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td
-                  className="px-3 py-6 text-center text-slate-500"
-                  colSpan={5}
-                >
+                <td className="px-3 py-6 text-center text-slate-500" colSpan={5}>
                   Loading…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td
-                  className="px-3 py-6 text-center text-slate-500"
-                  colSpan={5}
-                >
+                <td className="px-3 py-6 text-center text-slate-500" colSpan={5}>
                   No subjects found
                 </td>
               </tr>
@@ -227,9 +262,7 @@ export default function AddSubject() {
                 return (
                   <tr key={s.id} className="border-t hover:bg-slate-50/50">
                     <td className="px-3 py-2">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium">
-                      {s.name || "-"}
-                    </td>
+                    <td className="px-3 py-2 font-medium">{s.name || "-"}</td>
                     <td className="px-3 py-2">{cls?.name || "-"}</td>
                     <td className="px-3 py-2">
                       {typeLabels.length ? typeLabels.join(", ") : "—"}
@@ -290,23 +323,50 @@ export default function AddSubject() {
                 />
               </div>
 
+              {/* Class picker:
+                  - Create: multi-select classes (class_ids)
+                  - Edit: single-select class (class_name) */}
               <div>
                 <label className="block text-sm mb-1 text-slate-700">
-                  Class *
+                  {isEditing ? "Class *" : "Classes *"}
                 </label>
-                <Select
-                  options={classOptions}
-                  value={
-                    classOptions.find(
-                      (o) => String(o.value) === String(form.class_name)
-                    ) || null
-                  }
-                  onChange={(opt) =>
-                    setForm((f) => ({ ...f, class_name: opt?.value || "" }))
-                  }
-                  placeholder="Select class…"
-                  classNamePrefix="select"
-                />
+
+                {isEditing ? (
+                  <Select
+                    options={classOptions}
+                    value={
+                      classOptions.find(
+                        (o) => String(o.value) === String(form.class_name)
+                      ) || null
+                    }
+                    onChange={(opt) =>
+                      setForm((f) => ({ ...f, class_name: opt?.value || "" }))
+                    }
+                    placeholder="Select class…"
+                    classNamePrefix="select"
+                  />
+                ) : (
+                  <>
+                    <Select
+                      isMulti
+                      options={classOptions}
+                      value={form.class_ids}
+                      onChange={(opts) =>
+                        setForm((f) => ({ ...f, class_ids: opts || [] }))
+                      }
+                      placeholder="Select one or more classes…"
+                      classNamePrefix="select"
+                    />
+                    {/* Small preview of chosen classes as chips */}
+                    {!!form.class_ids.length && (
+                      <div className="mt-2 flex flex-wrap">
+                        {form.class_ids.map((o) => (
+                          <Chip key={o.value}>{o.label}</Chip>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div>

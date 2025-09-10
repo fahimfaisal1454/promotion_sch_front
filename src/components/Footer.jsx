@@ -26,8 +26,8 @@ export default function Footer() {
         {/* Institution Info */}
         <div className="space-y-1 text-sm leading-snug text-white">
           <h1 className="text-lg font-semibold">{institutionInfo.name}</h1>
-          <p>ঠিকানা: {institutionInfo.address}</p>
-          <p>লোকেশন কোড: {institutionInfo.location_code}</p>
+          <p>Adress: {institutionInfo.address}</p>
+          <p>Location Code: {institutionInfo.location_code}</p>
           <p>
             📞{" "}
             <a href={`tel:${institutionInfo.contact_phone}`} className="hover:underline">
