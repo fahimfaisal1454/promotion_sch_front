@@ -15,6 +15,11 @@ export default function AddSubject() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // in-flight flags
+  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
   // form state (create/edit)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -41,6 +46,12 @@ export default function AddSubject() {
     [classes]
   );
 
+  const classNameById = useMemo(() => {
+    const map = new Map();
+    classes.forEach((c) => map.set(String(c.id), c.name));
+    return map;
+  }, [classes]);
+
   const loadAll = async () => {
     setLoading(true);
     try {
@@ -48,8 +59,14 @@ export default function AddSubject() {
         axiosInstance.get("subjects/"),
         axiosInstance.get("classes/"),
       ]);
-      setSubjects(sRes.data || []);
-      setClasses((cRes.data || []).sort((a, b) => a.name.localeCompare(b.name)));
+      const clss = (cRes.data || []).sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "")
+      );
+      const subs = (sRes.data || []).sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "")
+      );
+      setSubjects(subs);
+      setClasses(clss);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load data");
@@ -92,7 +109,7 @@ export default function AddSubject() {
   const openEdit = (row) => {
     setForm({
       name: row.name || "",
-      class_ids: [], // unused in edit
+      class_ids: [], // not used in edit
       class_name: row.class_name || "",
       is_theory: !!row.is_theory,
       is_practical: !!row.is_practical,
@@ -107,79 +124,105 @@ export default function AddSubject() {
     const nameTrim = form.name.trim();
     if (!nameTrim) return toast.error("Subject name is required");
 
-    try {
-      if (isEditing) {
-        // single update path (existing API)
-        if (!form.class_name) return toast.error("Please select a class");
+    if (isEditing) {
+      if (!form.class_name) return toast.error("Please select a class");
+      setUpdating(true);
+      try {
         const payload = {
           name: nameTrim,
-          class_name: form.class_name,
+          class_name: form.class_name, // numeric class id
           is_theory: !!form.is_theory,
           is_practical: !!form.is_practical,
         };
         await axiosInstance.put(`subjects/${currentId}/`, payload);
         toast.success("Subject updated");
+        setIsModalOpen(false);
+        await loadAll();
+      } catch (e) {
+        console.error(e);
+        const msg =
+          e?.response?.data?.detail ||
+          (Array.isArray(e?.response?.data?.name)
+            ? e.response.data.name.join(", ")
+            : e?.response?.data?.name) ||
+          "Update failed";
+        toast.error(msg);
+      } finally {
+        setUpdating(false);
+      }
+      return;
+    }
+
+    // Create (multi-class)
+    if (!form.class_ids.length) {
+      return toast.error("Please select at least one class");
+    }
+
+    setSaving(true);
+    try {
+      // prevent duplicates: (subject name, class) pair
+      const existingKey = new Set(
+        subjects.map(
+          (s) => `${String(s.class_name)}::${(s.name || "").toLowerCase()}`
+        )
+      );
+
+      const targets = form.class_ids.map((opt) => opt?.value).filter(Boolean);
+      const toCreate = targets.filter(
+        (cid) => !existingKey.has(`${String(cid)}::${nameTrim.toLowerCase()}`)
+      );
+
+      if (toCreate.length === 0) {
+        toast("Nothing to create — all selected classes already have this subject.", { icon: "ℹ️" });
       } else {
-        // multi-create path: create the same subject for multiple classes
-        if (!form.class_ids.length) {
-          return toast.error("Please select at least one class");
-        }
-
-        // prevent duplicates: (subject name, class) pair
-        const existingByClass = new Map();
-        for (const s of subjects) {
-          const key = `${String(s.class_name)}::${(s.name || "").toLowerCase()}`;
-          existingByClass.set(key, true);
-        }
-
-        const targets = form.class_ids
-          .map((opt) => opt?.value)
-          .filter(Boolean);
-
-        // Filter out ones that already exist (case-insensitive name match)
-        const toCreate = targets.filter((cid) => {
-          const key = `${String(cid)}::${nameTrim.toLowerCase()}`;
-          return !existingByClass.has(key);
-        });
-
-        if (toCreate.length === 0) {
-          toast("Nothing to create — all selected classes already have this subject.", { icon: "ℹ️" });
-        } else {
-          const payloads = toCreate.map((cid) => ({
-            name: nameTrim,
-            class_name: cid, // API expects single class id field
-            is_theory: !!form.is_theory,
-            is_practical: !!form.is_practical,
-          }));
-
-          await Promise.all(
-            payloads.map((p) => axiosInstance.post("subjects/", p))
-          );
-          const skipped = targets.length - toCreate.length;
-          toast.success(
-            `Created ${toCreate.length} ${toCreate.length > 1 ? "subjects" : "subject"}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? "s" : ""}` : ""}`
-          );
-        }
+        await Promise.all(
+          toCreate.map((cid) =>
+            axiosInstance.post("subjects/", {
+              name: nameTrim,
+              class_name: cid,
+              is_theory: !!form.is_theory,
+              is_practical: !!form.is_practical,
+            })
+          )
+        );
+        const skipped = targets.length - toCreate.length;
+        toast.success(
+          `Created ${toCreate.length} ${toCreate.length > 1 ? "subjects" : "subject"}${
+            skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? "s" : ""}` : ""
+          }`
+        );
       }
 
       setIsModalOpen(false);
       await loadAll();
     } catch (e) {
       console.error(e);
-      const msg = e?.response?.data || e?.message || "Save failed";
+      const msg =
+        e?.response?.data?.detail ||
+        (Array.isArray(e?.response?.data?.name)
+          ? e.response.data.name.join(", ")
+          : e?.response?.data?.name) ||
+        e?.message ||
+        "Save failed";
       toast.error(typeof msg === "string" ? msg : "Save failed");
+    } finally {
+      setSaving(false);
     }
   };
 
   const destroy = async (id) => {
     if (!confirm("Delete this subject?")) return;
+    setDeletingId(id);
     try {
       await axiosInstance.delete(`subjects/${id}/`);
       toast.success("Subject deleted");
       await loadAll();
     } catch (e) {
       console.error(e);
-      toast.error("Delete failed");
+      const msg = e?.response?.data?.detail || "Delete failed";
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -200,9 +243,7 @@ export default function AddSubject() {
       {/* Filters */}
       <div className="grid gap-3 md:grid-cols-2 max-w-2xl mb-4">
         <div>
-          <label className="block text-sm mb-1 text-slate-700">
-            Search by name
-          </label>
+          <label className="block text-sm mb-1 text-slate-700">Search by name</label>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -211,9 +252,7 @@ export default function AddSubject() {
           />
         </div>
         <div>
-          <label className="block text-sm mb-1 text-slate-700">
-            Filter by class
-          </label>
+          <label className="block text-sm mb-1 text-slate-700">Filter by class</label>
           <Select
             isClearable
             options={classOptions}
@@ -252,21 +291,18 @@ export default function AddSubject() {
               </tr>
             ) : (
               filtered.map((s, i) => {
-                const cls = classes.find(
-                  (c) => String(c.id) === String(s.class_name)
-                );
+                const clsName = classNameById.get(String(s.class_name)) || "-";
                 const typeLabels = [
                   s.is_theory ? "Theoretical" : null,
                   s.is_practical ? "Practical" : null,
                 ].filter(Boolean);
+                const isDeleting = deletingId === s.id;
                 return (
                   <tr key={s.id} className="border-t hover:bg-slate-50/50">
                     <td className="px-3 py-2">{i + 1}</td>
                     <td className="px-3 py-2 font-medium">{s.name || "-"}</td>
-                    <td className="px-3 py-2">{cls?.name || "-"}</td>
-                    <td className="px-3 py-2">
-                      {typeLabels.length ? typeLabels.join(", ") : "—"}
-                    </td>
+                    <td className="px-3 py-2">{clsName}</td>
+                    <td className="px-3 py-2">{typeLabels.length ? typeLabels.join(", ") : "—"}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="inline-flex gap-2">
                         <button
@@ -277,9 +313,10 @@ export default function AddSubject() {
                         </button>
                         <button
                           onClick={() => destroy(s.id)}
-                          className="px-3 py-1 rounded bg-rose-600 text-white hover:bg-rose-700"
+                          disabled={isDeleting}
+                          className="px-3 py-1 rounded bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
                         >
-                          Delete
+                          {isDeleting ? "Deleting…" : "Delete"}
                         </button>
                       </div>
                     </td>
@@ -309,14 +346,10 @@ export default function AddSubject() {
 
             <form onSubmit={save} className="px-5 py-5 grid gap-4">
               <div>
-                <label className="block text-sm mb-1 text-slate-700">
-                  Subject name *
-                </label>
+                <label className="block text-sm mb-1 text-slate-700">Subject name *</label>
                 <input
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="e.g., Mathematics, Physics"
                   className="w-full rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -335,15 +368,12 @@ export default function AddSubject() {
                   <Select
                     options={classOptions}
                     value={
-                      classOptions.find(
-                        (o) => String(o.value) === String(form.class_name)
-                      ) || null
+                      classOptions.find((o) => String(o.value) === String(form.class_name)) || null
                     }
-                    onChange={(opt) =>
-                      setForm((f) => ({ ...f, class_name: opt?.value || "" }))
-                    }
+                    onChange={(opt) => setForm((f) => ({ ...f, class_name: opt?.value || "" }))}
                     placeholder="Select class…"
                     classNamePrefix="select"
+                    isDisabled={updating}
                   />
                 ) : (
                   <>
@@ -351,13 +381,11 @@ export default function AddSubject() {
                       isMulti
                       options={classOptions}
                       value={form.class_ids}
-                      onChange={(opts) =>
-                        setForm((f) => ({ ...f, class_ids: opts || [] }))
-                      }
+                      onChange={(opts) => setForm((f) => ({ ...f, class_ids: opts || [] }))}
                       placeholder="Select one or more classes…"
                       classNamePrefix="select"
+                      isDisabled={saving}
                     />
-                    {/* Small preview of chosen classes as chips */}
                     {!!form.class_ids.length && (
                       <div className="mt-2 flex flex-wrap">
                         {form.class_ids.map((o) => (
@@ -370,9 +398,7 @@ export default function AddSubject() {
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-slate-700">
-                  Subject type
-                </label>
+                <label className="block text-sm mb-2 text-slate-700">Subject type</label>
                 <div className="flex items-center gap-5">
                   <label className="inline-flex items-center gap-2 text-slate-700">
                     <input
@@ -384,6 +410,7 @@ export default function AddSubject() {
                           is_theory: e.target.checked,
                         }))
                       }
+                      disabled={saving || updating}
                     />
                     <span>Theoretical</span>
                   </label>
@@ -397,6 +424,7 @@ export default function AddSubject() {
                           is_practical: e.target.checked,
                         }))
                       }
+                      disabled={saving || updating}
                     />
                     <span>Practical</span>
                   </label>
@@ -408,14 +436,16 @@ export default function AddSubject() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 rounded border"
+                  disabled={saving || updating}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                  disabled={saving || updating}
                 >
-                  {isEditing ? "Update" : "Save"}
+                  {isEditing ? (updating ? "Updating…" : "Update") : saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

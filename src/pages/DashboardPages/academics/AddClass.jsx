@@ -27,21 +27,21 @@ function SectionMultiSelect({ sections, value, onChange, label = "Select Section
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return !needle ? sections : sections.filter(s => s.name.toLowerCase().includes(needle));
+    return !needle ? sections : sections.filter((s) => (s.name || "").toLowerCase().includes(needle));
   }, [q, sections]);
 
   const selectedCount = value.length;
   const selectedPreview = useMemo(() => {
-    const names = sections.filter(s => value.includes(s.id)).map(s => s.name);
+    const names = sections.filter((s) => value.includes(s.id)).map((s) => s.name);
     if (names.length <= 2) return names.join(", ") || "None";
     return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
   }, [sections, value]);
 
   const toggle = (id) => {
-    onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   };
 
-  const selectAll = () => onChange(filtered.map(s => s.id));
+  const selectAll = () => onChange(filtered.map((s) => s.id));
   const clearAll = () => onChange([]);
 
   return (
@@ -49,13 +49,11 @@ function SectionMultiSelect({ sections, value, onChange, label = "Select Section
       <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
       >
         <div className="flex items-center justify-between">
-          <span className="text-slate-700">
-            {selectedPreview}
-          </span>
+          <span className="text-slate-700">{selectedPreview}</span>
           <span className="ml-2 inline-flex items-center gap-2 text-xs text-slate-500">
             {selectedCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -86,18 +84,10 @@ function SectionMultiSelect({ sections, value, onChange, label = "Select Section
 
           <div className="flex items-center justify-between px-3 py-2 text-xs text-slate-600 border-b">
             <div className="space-x-2">
-              <button
-                type="button"
-                onClick={selectAll}
-                className="px-2 py-1 rounded border hover:bg-slate-50"
-              >
+              <button type="button" onClick={selectAll} className="px-2 py-1 rounded border hover:bg-slate-50">
                 Select all
               </button>
-              <button
-                type="button"
-                onClick={clearAll}
-                className="px-2 py-1 rounded border hover:bg-slate-50"
-              >
+              <button type="button" onClick={clearAll} className="px-2 py-1 rounded border hover:bg-slate-50">
                 Clear
               </button>
             </div>
@@ -108,19 +98,11 @@ function SectionMultiSelect({ sections, value, onChange, label = "Select Section
             {filtered.length === 0 ? (
               <div className="py-6 text-center text-slate-500 text-sm">No sections</div>
             ) : (
-              filtered.map(s => {
+              filtered.map((s) => {
                 const checked = value.includes(s.id);
                 return (
-                  <label
-                    key={s.id}
-                    className="flex items-center gap-3 px-2 py-2 rounded hover:bg-slate-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={checked}
-                      onChange={() => toggle(s.id)}
-                    />
+                  <label key={s.id} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" className="h-4 w-4" checked={checked} onChange={() => toggle(s.id)} />
                     <span className="text-slate-700 text-sm">{s.name}</span>
                   </label>
                 );
@@ -152,6 +134,7 @@ export default function AddClass() {
   // create form
   const [className, setClassName] = useState("");
   const [picked, setPicked] = useState([]);
+  const [saving, setSaving] = useState(false);
 
   // filter
   const [q, setQ] = useState("");
@@ -161,34 +144,38 @@ export default function AddClass() {
   const [editId, setEditId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editPicked, setEditPicked] = useState([]);
+  const [updating, setUpdating] = useState(false);
+
+  // delete in-progress
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [secRes, clsRes] = await Promise.all([
-        AxiosInstance.get("sections/"),
-        AxiosInstance.get("classes/"),
-      ]);
-      const secs = (secRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
-      const clss = (clsRes.data || []).sort((a, b) => a.name.localeCompare(b.name));
+      const [secRes, clsRes] = await Promise.all([AxiosInstance.get("sections/"), AxiosInstance.get("classes/")]);
+      const secs = (secRes.data || []).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      const clss = (clsRes.data || []).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
       setSections(secs);
       setClasses(clss);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load data");
+      toast.error(e?.response?.data?.detail || "Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const filteredClasses = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return classes;
-    return classes.filter(c =>
-      c.name.toLowerCase().includes(needle) ||
-      (c.sections_detail || []).some(s => s.name.toLowerCase().includes(needle))
+    return classes.filter(
+      (c) =>
+        (c.name || "").toLowerCase().includes(needle) ||
+        (c.sections_detail || []).some((s) => (s.name || "").toLowerCase().includes(needle))
     );
   }, [classes, q]);
 
@@ -199,26 +186,31 @@ export default function AddClass() {
     if (!name) return toast.error("Class name is required");
     if (!picked.length) return toast.error("Pick at least one section");
 
+    setSaving(true);
     try {
-      const res = await AxiosInstance.post("classes/", {
-        name,
-        sections: picked,
-      });
+      await AxiosInstance.post("classes/", { name, sections: picked });
       toast.success("Class saved");
       setClassName("");
       setPicked([]);
-      setClasses(prev => [res.data, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
+      // Always reload from server to ensure we have sections_detail etc.
+      await loadAll();
     } catch (e) {
       console.error(e);
-      toast.error("Save failed");
+      const msg =
+        e?.response?.data?.detail ||
+        (Array.isArray(e?.response?.data?.name) ? e.response.data.name.join(", ") : e?.response?.data?.name) ||
+        "Save failed";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
     }
   };
 
   // edit
   const openEdit = (row) => {
     setEditId(row.id);
-    setEditName(row.name);
-    setEditPicked((row.sections_detail || []).map(s => s.id));
+    setEditName(row.name || "");
+    setEditPicked((row.sections_detail || []).map((s) => s.id));
     setShowEdit(true);
   };
 
@@ -226,32 +218,38 @@ export default function AddClass() {
     const name = editName.trim();
     if (!name) return toast.error("Class name is required");
     if (!editPicked.length) return toast.error("Pick at least one section");
+    setUpdating(true);
     try {
-      const res = await AxiosInstance.patch(`classes/${editId}/`, {
-        name,
-        sections: editPicked,
-      });
+      await AxiosInstance.patch(`classes/${editId}/`, { name, sections: editPicked });
       toast.success("Updated");
-      setClasses(prev =>
-        prev.map(c => (c.id === editId ? res.data : c)).sort((a, b) => a.name.localeCompare(b.name))
-      );
       setShowEdit(false);
+      await loadAll();
     } catch (e) {
       console.error(e);
-      toast.error("Update failed");
+      const msg =
+        e?.response?.data?.detail ||
+        (Array.isArray(e?.response?.data?.name) ? e.response.data.name.join(", ") : e?.response?.data?.name) ||
+        "Update failed";
+      toast.error(msg);
+    } finally {
+      setUpdating(false);
     }
   };
 
   // delete
   const destroy = async (id) => {
     if (!confirm("Delete this class?")) return;
+    setDeletingId(id);
     try {
       await AxiosInstance.delete(`classes/${id}/`);
-      setClasses(prev => prev.filter(c => c.id !== id));
       toast.success("Deleted");
+      await loadAll();
     } catch (e) {
       console.error(e);
-      toast.error("Delete failed");
+      const msg = e?.response?.data?.detail || "Delete failed";
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -261,9 +259,7 @@ export default function AddClass() {
       <div className="bg-white rounded-2xl border shadow-sm">
         <div className="px-6 pt-6 pb-3 border-b">
           <h2 className="text-2xl font-semibold text-slate-800">Class Management</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Create a class and choose the sections from the dropdown.
-          </p>
+          <p className="text-sm text-slate-500 mt-1">Create a class and choose the sections from the dropdown.</p>
         </div>
 
         {/* Create */}
@@ -278,20 +274,15 @@ export default function AddClass() {
             />
           </div>
 
-          <SectionMultiSelect
-            sections={sections}
-            value={picked}
-            onChange={setPicked}
-            label="Sections"
-          />
+          <SectionMultiSelect sections={sections} value={picked} onChange={setPicked} label="Sections" />
 
           <div className="md:col-span-2 flex justify-end">
             <button
               type="submit"
               className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
-              disabled={loading}
+              disabled={loading || saving}
             >
-              Save
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
@@ -320,9 +311,17 @@ export default function AddClass() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={4}>Loading…</td></tr>
+                  <tr>
+                    <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
+                      Loading…
+                    </td>
+                  </tr>
                 ) : filteredClasses.length === 0 ? (
-                  <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={4}>No data</td></tr>
+                  <tr>
+                    <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
+                      No data
+                    </td>
+                  </tr>
                 ) : (
                   filteredClasses.map((row, i) => (
                     <tr key={row.id} className="border-t hover:bg-slate-50/50">
@@ -331,7 +330,7 @@ export default function AddClass() {
                       <td className="px-3 py-2">
                         {(row.sections_detail || []).length ? (
                           <div className="flex flex-wrap gap-1">
-                            {row.sections_detail.map(s => (
+                            {row.sections_detail.map((s) => (
                               <span
                                 key={s.id}
                                 className="px-2 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -354,9 +353,10 @@ export default function AddClass() {
                           </button>
                           <button
                             onClick={() => destroy(row.id)}
-                            className="px-3 py-1 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                            className="px-3 py-1 rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
+                            disabled={deletingId === row.id}
                           >
-                            Delete
+                            {deletingId === row.id ? "Deleting…" : "Delete"}
                           </button>
                         </div>
                       </td>
@@ -375,7 +375,9 @@ export default function AddClass() {
           <div className="bg-white rounded-2xl w-[94%] max-w-2xl shadow-xl border">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold">Edit Class</h3>
-              <button onClick={() => setShowEdit(false)} className="text-slate-500 hover:text-slate-800">✕</button>
+              <button onClick={() => setShowEdit(false)} className="text-slate-500 hover:text-slate-800">
+                ✕
+              </button>
             </div>
             <div className="px-6 py-5 grid gap-6">
               <div>
@@ -386,18 +388,17 @@ export default function AddClass() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
-              <SectionMultiSelect
-                sections={sections}
-                value={editPicked}
-                onChange={setEditPicked}
-                label="Sections"
-              />
+              <SectionMultiSelect sections={sections} value={editPicked} onChange={setEditPicked} label="Sections" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowEdit(false)} className="px-4 py-2 rounded-lg border">
                   Cancel
                 </button>
-                <button onClick={update} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
-                  Update
+                <button
+                  onClick={update}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                  disabled={updating}
+                >
+                  {updating ? "Updating…" : "Update"}
                 </button>
               </div>
             </div>

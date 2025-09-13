@@ -1,11 +1,13 @@
 // client/src/pages/DashboardPages/Master/AddSection.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AxiosInstance from "../../../components/AxiosInstance";
 
 export default function AddSection() {
   const [name, setName] = useState("");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [editing, setEditing] = useState(null); // id being edited
   const [query, setQuery] = useState("");
 
@@ -13,7 +15,10 @@ export default function AddSection() {
     setLoading(true);
     try {
       const res = await AxiosInstance.get("sections/");
-      setRows(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : [];
+      // sort by name for stable UI
+      list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      setRows(list);
     } catch (e) {
       console.error(e);
       alert("Failed to load sections");
@@ -31,6 +36,7 @@ export default function AddSection() {
     const cleaned = name.trim().toUpperCase();
     if (!cleaned) return;
 
+    setSaving(true);
     try {
       if (editing) {
         await AxiosInstance.patch(`sections/${editing}/`, { name: cleaned });
@@ -48,6 +54,8 @@ export default function AddSection() {
         e?.response?.data?.name ||
         "Save failed";
       alert(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -58,18 +66,26 @@ export default function AddSection() {
 
   const remove = async (id) => {
     if (!window.confirm("Delete this section?")) return;
+    setDeletingId(id);
     try {
       await AxiosInstance.delete(`sections/${id}/`);
       await load();
     } catch (e) {
       console.error(e);
-      alert("Delete failed");
+      const msg =
+        e?.response?.data?.detail ||
+        e?.response?.data?.name ||
+        "Delete failed";
+      alert(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const filtered = rows.filter((r) =>
-    (r.name || "").toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return rows.filter((r) => (r.name || "").toLowerCase().includes(q));
+  }, [rows, query]);
 
   return (
     <div className="p-4 grid gap-4 md:grid-cols-2">
@@ -90,8 +106,11 @@ export default function AddSection() {
             />
           </div>
           <div className="flex gap-2">
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-              {editing ? "Update" : "Save"}
+            <button
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2 rounded"
+              disabled={saving}
+            >
+              {saving ? (editing ? "Updating…" : "Saving…") : editing ? "Update" : "Save"}
             </button>
             {editing && (
               <button
@@ -142,9 +161,10 @@ export default function AddSection() {
                     </button>
                     <button
                       onClick={() => remove(r.id)}
-                      className="px-3 py-1 rounded bg-red-600 text-white"
+                      className="px-3 py-1 rounded bg-red-600 text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={deletingId === r.id}
                     >
-                      Delete
+                      {deletingId === r.id ? "Deleting…" : "Delete"}
                     </button>
                   </td>
                 </tr>
