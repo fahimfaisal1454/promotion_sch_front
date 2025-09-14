@@ -8,7 +8,7 @@ export default function MyStudents() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await AxiosInstance.get("class-routines/my-students/");
+        const { data } = await AxiosInstance.get("students/?mine=1");
         setRows(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error("Failed to load students", e);
