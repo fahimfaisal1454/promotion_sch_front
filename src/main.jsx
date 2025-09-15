@@ -43,8 +43,8 @@ import ManagePeriods from "./pages/DashboardPages/academics/ManagePeriods.jsx";
 import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 import AssignedSubjects from "./pages/DashboardPages/Academics/AssignedSubjects.jsx";
 import ClassTimetable from "./pages/DashboardPages/academics/ClassTimetable.jsx"
-import AssignTeacherForm from "./pages/DashboardPages/academics/AssignTeacherForm.jsx";
-import AssignTeacherList from "./pages/DashboardPages/academics/AssignTeacherList.jsx";
+// import AssignTeacherForm from "./pages/DashboardPages/academics/AssignTeacherForm.jsx";
+// import AssignTeacherList from "./pages/DashboardPages/academics/AssignTeacherList.jsx";
 import ManageClassrooms from "./pages/DashboardPages/academics/ManageClassrooms.jsx";
 
 
@@ -59,6 +59,7 @@ import Assignments from "./pages/Teachers/Assignments.jsx";
 import Reports from "./pages/Teachers/Reports.jsx";
 import TeacherNotices from "./pages/Teachers/Notices.jsx";
 import MyStudents from "./pages/Teachers/MyStudents.jsx";
+import TeacherRoutine from "./pages/Teachers/TeacherRoutine.jsx";
 
 
 /* === Student Panel imports (new) === */
@@ -159,8 +160,8 @@ const router = createBrowserRouter([
       { path: "add-section", element: <AddSection /> },
       { path: "assigned-subjects", element: <AssignedSubjects /> },
       { path: "class-timetable", element: <ClassTimetable /> },
-      { path: "assigned-teacher-form", element: <AssignTeacherForm /> },
-      { path: "assigned-teacher-list", element: <AssignTeacherList /> },
+      // { path: "assigned-teacher-form", element: <AssignTeacherForm /> },
+      // { path: "assigned-teacher-list", element: <AssignTeacherList /> },
       { path: "link-account", element: <LinkAccount /> },
       { path: "periods", element: <ManagePeriods /> }, 
     ],
@@ -184,6 +185,7 @@ const router = createBrowserRouter([
       { path: "notices", element: <TeacherNotices /> },
       { path: "students", element: <MyStudents /> },
       { path: "profile", element: <MyProfile /> },
+      { path: "routine", element: <TeacherRoutine /> }
     ],
   },
 

@@ -1,11 +1,8 @@
+// src/pages/DashboardPages/academics/ClassTimetable.jsx
 import { useEffect, useMemo, useState } from "react";
-import Select from "react-select";
-import { Toaster, toast } from "react-hot-toast";
 import AxiosInstance from "../../../components/AxiosInstance";
+import { Toaster, toast } from "react-hot-toast";
 
-/* ----------------------------------------------------------------------------
-   Constants & helpers (single source of truth)
----------------------------------------------------------------------------- */
 const DAYS = [
   { value: "Mon", label: "Monday" },
   { value: "Tue", label: "Tuesday" },
@@ -15,667 +12,404 @@ const DAYS = [
   { value: "Sat", label: "Saturday" },
   { value: "Sun", label: "Sunday" },
 ];
-const DAY_ORDER = Object.fromEntries(DAYS.map((d, i) => [d.value, i]));
 
-// read element by id or name
-const el = (nameOrId) =>
-  document.getElementById(nameOrId) ||
-  document.querySelector(`[name="${nameOrId}"]`) ||
-  null;
-
-// read <input type="time"> as "HH:MM"
-const readTime = (nameOrId) => {
-  const node = el(nameOrId);
-  if (!node) return "";
-  const v = (node.value || "").trim();
-  if (v) return v;
-  if (
-    typeof node.valueAsNumber === "number" &&
-    !Number.isNaN(node.valueAsNumber)
-  ) {
-    const d = new Date(node.valueAsNumber);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  }
-  return "";
+const emptyForm = {
+  class_id: "",
+  section_id: "",
+  subject_id: "",
+  teacher_id: "",
+  day: "",
+  period_id: "",
+  period_label: "",
+  start_time: "",
+  end_time: "",
+  classroom_id: "",
 };
 
-// display HH:MM(/SS) -> h:MM AM/PM
-const fmt12 = (value) => {
-  if (!value) return "";
-  const [H, M = "00", S] = String(value).split(":");
-  let h = parseInt(H, 10);
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  const ss = S && S !== "00" ? `:${S}` : "";
-  return `${h}:${String(M).padStart(2, "0")}${ss} ${ampm}`;
-};
-
-// normalize any server row shape into a single shape
-const normalizeRow = (row) => {
-  const day = row.day_of_week ?? row.day ?? row.day_label ?? row.dayLabel ?? "";
-  const start = row.start_time ?? row.start ?? row.period_start ?? "";
-  const end = row.end_time ?? row.end ?? row.period_end ?? "";
-  const period = row.period ?? row.period_label ?? row.periodName ?? "";
-
-  const subjectId = row.subject_id ?? row.subject?.id ?? null;
-  const subjectText =
-    row.subject_label ??
-    (typeof row.subject === "string"
-      ? row.subject
-      : row.subject?.name ?? row.subject_name ?? null);
-
-  const sectionId = row.section_id ?? row.section?.id ?? null;
-  const sectionText =
-    row.section_label ??
-    (typeof row.section === "string"
-      ? row.section
-      : row.section?.name ?? row.section_name ?? null);
-
-  return {
-    id: row.id,
-    day,
-    period,
-    start,
-    end,
-    sectionId,
-    sectionText,
-    subjectId,
-    subjectText,
-    __raw: row,
-  };
-};
-
-/* ----------------------------------------------------------------------------
-   Component
----------------------------------------------------------------------------- */
 export default function ClassTimetable() {
-  // master data
+  // lookups
   const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [periods, setPeriods] = useState([]);
+  const [rooms, setRooms] = useState([]);
 
-  // selections
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
+  // data
+  const [rows, setRows] = useState([]);
 
-  // list
-  const [loadingList, setLoadingList] = useState(false);
-  const [routines, setRoutines] = useState([]);
+  // ui
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
 
-  // edit modal
-  const [editOpen, setEditOpen] = useState(false);
-  const [editRow, setEditRow] = useState(null);
+  // filters
+  const [filters, setFilters] = useState({ class_id: "", section_id: "", teacher_id: "", day: "" });
 
-  /* ------------------------------ API ------------------------------------ */
-  const loadClasses = async () => {
+  // --- helpers ---
+  const tryGet = async (endpoints) => {
+    for (const url of endpoints) {
+      try {
+        const res = await AxiosInstance.get(url);
+        if (Array.isArray(res?.data)) return res.data;
+      } catch (_) { /* ignore and try next */ }
+    }
+    return [];
+  };
+
+  const timeHHMM = (t) => (t ? String(t).slice(0, 5) : "");
+
+  const periodById = useMemo(() => Object.fromEntries(periods.map(p => [String(p.id), p])), [periods]);
+
+  // --- initial loads ---
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [p, r, c, s, t] = await Promise.all([
+          tryGet(["periods/"]),
+          tryGet(["rooms/"]),
+          tryGet(["class-names/", "classes/", "class_name/"]),
+          tryGet(["sections/", "section/"]),
+          tryGet(["teachers/", "people/teachers/", "faculty/teachers/", "faculty/"]),
+        ]);
+        setPeriods(p);
+        setRooms(r);
+        setClasses(c);
+        setSections(s);
+        setTeachers(t);
+      } finally {
+        setLoading(false);
+      }
+    })();
+    reloadTable();
+  }, []);
+
+  // load subjects when class changes
+  useEffect(() => {
+    (async () => {
+      if (!form.class_id && !filters.class_id) { setSubjects([]); return; }
+      const classId = form.class_id || filters.class_id;
+      try {
+        // Prefer subjects filtered by class; fall back to all subjects
+        const res = await AxiosInstance.get(`subjects/?class_name=${classId}`);
+        setSubjects(Array.isArray(res.data) ? res.data : []);
+      } catch (_) {
+        try {
+          const res2 = await AxiosInstance.get(`assigned-subjects/?class_name=${classId}`);
+          setSubjects(Array.isArray(res2.data) ? res2.data.map(x => x.subject) : []);
+        } catch (__) {
+          try {
+            const res3 = await AxiosInstance.get("subjects/");
+            setSubjects(Array.isArray(res3.data) ? res3.data : []);
+          } catch (___) {
+            setSubjects([]);
+          }
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.class_id, filters.class_id]);
+
+  async function reloadTable() {
+    setLoading(true);
     try {
+      const params = {};
+      if (filters.class_id) params.class_name = filters.class_id;
+      if (filters.section_id) params.section = filters.section_id;
+      if (filters.teacher_id) params.teacher_id = filters.teacher_id;
+      if (filters.day) params.day_of_week = filters.day;
       let res;
       try {
-        res = await AxiosInstance.get("class-names/");
-      } catch {
-        res = await AxiosInstance.get("classes/"); // fallback
+        res = await AxiosInstance.get("timetable/", { params });
+      } catch (_) {
+        res = await AxiosInstance.get("class-routines/", { params }); // fallback alias if present
       }
-      setClasses(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load classes");
-    }
-  };
-
-  const loadSubjects = async (classId) => {
-    try {
-      let res;
-      try {
-        res = await AxiosInstance.get(`subjects/?class_id=${classId}`);
-      } catch {
-        res = await AxiosInstance.get("subjects/"); // fallback
-      }
-      setSubjects(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load subjects");
-    }
-  };
-
-  // fetch only by class; filter client-side for section/subject
-  const serverLoadRoutines = async () => {
-    const q = new URLSearchParams();
-    if (selectedClass?.value) q.append("class_id", selectedClass.value);
-    const res = await AxiosInstance.get(
-      `timetable/${q.toString() ? `?${q}` : ""}`
-    );
-    return Array.isArray(res.data) ? res.data : [];
-  };
-
-  const loadRoutines = async () => {
-    if (!selectedClass?.value) {
-      setRoutines([]);
-      return;
-    }
-    setLoadingList(true);
-    try {
-      let data = await serverLoadRoutines();
-      let rows = data.map(normalizeRow);
-
-      // filter by selected section (accept id or label)
-      const wantSectionLabel = selectedSection
-        ? typeof selectedSection.value === "number"
-          ? selectedSection.label
-          : selectedSection.value
-        : null;
-      const wantSectionId =
-        typeof selectedSection?.value === "number"
-          ? selectedSection.value
-          : null;
-
-      // filter by subject (id or text)
-      const wantSubjectId = selectedSubject?.value ?? null;
-      const wantSubjectText = selectedSubject?.label ?? null;
-
-      rows = rows.filter((r) => {
-        if (wantSectionId || wantSectionLabel) {
-          const okId =
-            wantSectionId &&
-            r.sectionId &&
-            String(r.sectionId) === String(wantSectionId);
-          const okText =
-            wantSectionLabel &&
-            r.sectionText &&
-            String(r.sectionText).toLowerCase() ===
-              String(wantSectionLabel).toLowerCase();
-          if (!(okId || okText)) return false;
-        }
-        if (wantSubjectId || wantSubjectText) {
-          const okId =
-            wantSubjectId &&
-            r.subjectId &&
-            String(r.subjectId) === String(wantSubjectId);
-          const rSubText =
-            r.subjectText ??
-            r.__raw.subject_name ??
-            r.__raw.subject ??
-            r.__raw.subjectLabel ??
-            null;
-          const okText =
-            wantSubjectText &&
-            rSubText &&
-            String(rSubText).toLowerCase() ===
-              String(wantSubjectText).toLowerCase();
-          if (!(okId || okText)) return false;
-        }
-        return true;
-      });
-
-      rows.sort((a, b) => {
-        const da = DAY_ORDER[a.day] ?? 0;
-        const db = DAY_ORDER[b.day] ?? 0;
-        if (da !== db) return da - db;
-        return String(a.start).localeCompare(String(b.start));
-      });
-
-      setRoutines(rows);
+      setRows(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load timetable");
     } finally {
-      setLoadingList(false);
+      setLoading(false);
+    }
+  }
+
+  // --- handlers ---
+  const setField = (name, value) => setForm(f => ({ ...f, [name]: value }));
+
+  const onSelectPeriod = (periodId) => {
+    setField("period_id", periodId);
+    const p = periodById[String(periodId)];
+    if (p) {
+      setField("period_label", p.name);
+      setField("start_time", p.start_time ?? "");
+      setField("end_time", p.end_time ?? "");
     }
   };
 
-  /* ------------------------------ options -------------------------------- */
-  const classOptions = useMemo(
-    () =>
-      classes.map((c) => ({
-        value: c.id,
-        label: c.name || c.title || `Class ${c.id}`,
-        sections: c.sections || [],
-      })),
-    [classes]
-  );
-
-  // supports either [{id,name}] or ["A","B"]
-  const sectionOptions = useMemo(() => {
-    if (!selectedClass) return [];
-    const cls = classes.find((x) => x.id === selectedClass.value);
-    return (cls?.sections || []).map((s) =>
-      typeof s === "string" ? { value: s, label: s } : { value: s.id, label: s.name || s.code }
-    );
-  }, [classes, selectedClass]);
-
-  const subjectOptions = useMemo(
-    () => (subjects || []).map((s) => ({ value: s.id, label: s.name })),
-    [subjects]
-  );
-
-  /* ------------------------------ form helpers --------------------------- */
-  const clearAll = () => {
-    for (const d of DAYS) {
-      const p = el(`period_${d.value}`);
-      const s = el(`start_${d.value}`);
-      const e = el(`end_${d.value}`);
-      if (p) p.value = "";
-      if (s) s.value = "";
-      if (e) e.value = "";
-    }
+  const validate = () => {
+    const req = ["class_id","section_id","subject_id","teacher_id","day","period_label","start_time","end_time"];
+    for (const k of req) if (!String(form[k] ?? "").trim()) return `Missing ${k.replace("_", " ")}`;
+    if (form.start_time >= form.end_time) return "Start time must be before end time";
+    return null;
   };
 
-  const copyFirstFilledToAll = () => {
-    let srcS = "",
-      srcE = "";
-    for (const d of DAYS) {
-      const s = readTime(`start_${d.value}`);
-      const e = readTime(`end_${d.value}`);
-      if (s && e) {
-        srcS = s;
-        srcE = e;
-        break;
-      }
-    }
-    if (!srcS || !srcE)
-      return toast("Enter a time on any day first, then copy.");
-    for (const d of DAYS) {
-      const s = el(`start_${d.value}`);
-      if (s) s.value = srcS;
-      const e = el(`end_${d.value}`);
-      if (e) e.value = srcE;
-    }
-  };
-
-  const createMany = async () => {
-    if (!selectedClass?.value) return toast.error("Select class");
-    if (!selectedSection?.value) return toast.error("Select section");
-    if (!selectedSubject?.value) return toast.error("Select subject");
-
-    try {
-      if (document.activeElement) document.activeElement.blur();
-    } catch {}
-
-    const isTime = (t) =>
-      typeof t === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(t.trim());
-    const toSec = (t) => {
-      const [h, m, s = "00"] = t.split(":");
-      return +h * 3600 + +m * 60 + +s;
+  async function saveNew() {
+    const v = validate();
+    if (v) { toast.error(v); return; }
+    setSaving(true);
+    const payload = {
+      class_name: form.class_id,
+      section: form.section_id,
+      subject: form.subject_id,
+      teacher: form.teacher_id,
+      day_of_week: form.day,
+      period: form.period_label, // text label
+      start_time: form.start_time,
+      end_time: form.end_time,
+      classroom: form.classroom_id || null,
     };
-
-    // API expects section PK (integer)
-    let sectionPk = null;
-    if (typeof selectedSection.value === "number") {
-      sectionPk = selectedSection.value;
-    } else {
-      const cls = classes.find((x) => x.id === selectedClass.value);
-      const match = (cls?.sections || []).find(
-        (s) =>
-          (s.name || s.code || s) ===
-          (selectedSection.label || selectedSection.value)
-      );
-      sectionPk = match?.id ?? null;
-    }
-    if (!sectionPk) return toast.error("Could not resolve section id.");
-
-    const payloads = [];
-    for (const d of DAYS) {
-      const day = d.value;
-      const period = (el(`period_${day}`)?.value || "").trim();
-      const start = readTime(`start_${day}`);
-      const end = readTime(`end_${day}`);
-
-      if (!start || !end) continue;
-      if (!isTime(start) || !isTime(end))
-        return toast.error(`Invalid time on ${d.label}.`);
-      if (toSec(start) >= toSec(end))
-        return toast.error(`End must be after start for ${d.label}.`);
-
-      payloads.push({
-        class_name: selectedClass.value, // FK id
-        section: sectionPk, // PK integer
-        subject: selectedSubject.value, // FK id
-        day_of_week: day, // "Mon".."Sun"
-        period,
-        start_time: start,
-        end_time: end,
-      });
-    }
-
-    if (payloads.length === 0) return toast("Nothing to save.");
-
     try {
-      await Promise.all(
-        payloads.map((p) => AxiosInstance.post("timetable/", p))
-      );
-      toast.success("Timetable saved");
-      await loadRoutines();
+      await AxiosInstance.post("timetable/", payload);
+      toast.success("Saved");
+      clearForm();
+      reloadTable();
     } catch (e) {
-      console.error("Save failed:", e?.response?.data || e?.message || e);
-      toast.error(
-        e?.response?.data
-          ? typeof e.response.data === "string"
-            ? e.response.data
-            : JSON.stringify(e.response.data)
-          : "Save failed"
-      );
-    }
-  };
-
-  const openEdit = (r) => {
-    setEditRow({
-      ...r,
-      _day: r.day,
-      _period: r.period || "",
-      _start: r.start || "",
-      _end: r.end || "",
-    });
-    setEditOpen(true);
-  };
-
-  const submitEdit = async () => {
-    try {
-      await AxiosInstance.patch(`timetable/${editRow.id}/`, {
-        day_of_week: editRow._day,
-        period: editRow._period,
-        start_time: editRow._start,
-        end_time: editRow._end,
-      });
-      toast.success("Updated");
-      setEditOpen(false);
-      setEditRow(null);
-      await loadRoutines();
-    } catch (e) {
-      console.error(e);
-      const msg =
-        e?.response?.data
-          ? typeof e.response.data === "string"
-            ? e.response.data
-            : JSON.stringify(e.response.data)
-          : "Update failed";
+      const msg = e?.response?.data ? jsonErrors(e.response.data) : "Save failed";
       toast.error(msg);
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
-  const removeRow = async (id) => {
-    if (!window.confirm("Delete this row?")) return;
+  async function saveEdit() {
+    if (!editingId) return;
+    const v = validate();
+    if (v) { toast.error(v); return; }
+    setSaving(true);
+    const payload = {
+      class_name: form.class_id,
+      section: form.section_id,
+      subject: form.subject_id,
+      teacher: form.teacher_id,
+      day_of_week: form.day,
+      period: form.period_label,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      classroom: form.classroom_id || null,
+    };
+    try {
+      await AxiosInstance.patch(`timetable/${editingId}/`, payload);
+      toast.success("Updated");
+      clearForm();
+      reloadTable();
+    } catch (e) {
+      const msg = e?.response?.data ? jsonErrors(e.response.data) : "Update failed";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDelete(id) {
+    if (!confirm("Delete this slot?")) return;
     try {
       await AxiosInstance.delete(`timetable/${id}/`);
       toast.success("Deleted");
-      await loadRoutines();
+      reloadTable();
     } catch (e) {
-      console.error(e);
-      toast.error("Delete failed");
+      const msg = e?.response?.data ? jsonErrors(e.response.data) : "Delete failed";
+      toast.error(msg);
     }
-  };
+  }
 
-  /* ------------------------------ effects -------------------------------- */
-  useEffect(() => {
-    loadClasses();
-  }, []);
-  useEffect(() => {
-    if (selectedClass?.value) loadSubjects(selectedClass.value);
-    setSelectedSection(null);
-    setSelectedSubject(null);
-    clearAll();
-  }, [selectedClass]);
-  useEffect(() => {
-    loadRoutines();
-  }, [selectedClass, selectedSection, selectedSubject]);
+  function onEdit(row) {
+    setEditingId(row.id);
+    setForm({
+      class_id: row.class_name || row.class_name_id || row.class || "",
+      section_id: row.section || row.section_id || "",
+      subject_id: row.subject || row.subject_id || "",
+      teacher_id: row.teacher || row.teacher_id || "",
+      day: row.day_of_week || row.day || "",
+      period_id: "", // we only store label on entry; keep blank
+      period_label: row.period || "",
+      start_time: row.start_time || "",
+      end_time: row.end_time || "",
+      classroom_id: row.classroom || row.classroom_id || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
-  /* ------------------------------ UI ------------------------------------- */
+  function clearForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setErr("");
+  }
+
+  const filteredSubjects = useMemo(() => {
+    if (!form.class_id) return subjects;
+    // If subjects already filtered by API, return as-is
+    // else try to filter by subject.class_name id fields if present
+    return subjects.filter((s) => {
+      const cid = s.class_name || s.class_name_id || s.class || s.classId;
+      return !cid || String(cid) === String(form.class_id);
+    });
+  }, [subjects, form.class_id]);
+
+  const classLabel = (id) => classes.find(c => String(c.id) === String(id))?.name || classes.find(c => String(c.id) === String(id))?.title || id;
+  const sectionLabel = (id) => sections.find(s => String(s.id) === String(id))?.name || id;
+  const subjectLabel = (id) => subjects.find(s => String(s.id) === String(id))?.name || subjects.find(s => String(s.id) === String(id))?.title || id;
+  const teacherLabel = (id) => teachers.find(t => String(t.id) === String(id))?.full_name || teachers.find(t => String(t.id) === String(id))?.name || id;
+  const roomLabel = (id) => rooms.find(r => String(r.id) === String(id))?.name || id;
+
   return (
-    <div className="p-4">
-      <Toaster position="top-center" />
-      <h2 className="text-xl font-semibold mb-3">Class Timetable</h2>
+    <div className="space-y-4">
+      <Toaster position="top-right" />
+      <h1 className="text-2xl font-semibold">Class Timetable</h1>
 
-      <div className="grid md:grid-cols-3 gap-3 mb-4">
-        <div>
-          <label className="block text-sm mb-1">Class</label>
-          <Select
-            options={classOptions}
-            value={selectedClass}
-            onChange={setSelectedClass}
-            placeholder="Select class"
-          />
+      {/* --- Add / Edit form --- */}
+      <div className="bg-white border rounded p-3 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <SelectBox label="Class" value={form.class_id} onChange={(v)=>setField("class_id", v)} options={classes} getLabel={(o)=>o.name || o.title} />
+          <SelectBox label="Section" value={form.section_id} onChange={(v)=>setField("section_id", v)} options={sections} getLabel={(o)=>o.name} />
+          <SelectBox label="Subject" value={form.subject_id} onChange={(v)=>setField("subject_id", v)} options={filteredSubjects} getLabel={(o)=>o.name || o.title} />
+          <SelectBox label="Teacher" value={form.teacher_id} onChange={(v)=>setField("teacher_id", v)} options={teachers} getLabel={(o)=>o.full_name || o.name} />
         </div>
-        <div>
-          <label className="block text-sm mb-1">Section</label>
-          <Select
-            options={sectionOptions}
-            value={selectedSection}
-            onChange={setSelectedSection}
-            isDisabled={!selectedClass}
-            placeholder="Select section"
-          />
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          {/* Day */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Day</label>
+            <select value={form.day} onChange={e=>setField("day", e.target.value)} className="select select-bordered">
+              <option value="">Select day</option>
+              {DAYS.map(d=> <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          </div>
+
+          {/* Period (select) */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Period</label>
+            <select value={form.period_id} onChange={e=>onSelectPeriod(e.target.value)} className="select select-bordered">
+              <option value="">Select period</option>
+              {periods.sort((a,b)=> (a.order||0)-(b.order||0)).map(p=> (
+                <option key={p.id} value={p.id}>{p.name} ({timeHHMM(p.start_time)}–{timeHHMM(p.end_time)})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Start */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Start time</label>
+            <input type="time" className="input input-bordered" value={timeHHMM(form.start_time)} onChange={e=>setField("start_time", e.target.value+":00")} />
+          </div>
+
+          {/* End */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">End time</label>
+            <input type="time" className="input input-bordered" value={timeHHMM(form.end_time)} onChange={e=>setField("end_time", e.target.value+":00")} />
+          </div>
+
+          {/* Room */}
+          <SelectBox label="Classroom (optional)" value={form.classroom_id} onChange={(v)=>setField("classroom_id", v)} options={rooms} getLabel={(o)=>o.name} />
         </div>
-        <div>
-          <label className="block text-sm mb-1">Subject</label>
-          <Select
-            options={subjectOptions}
-            value={selectedSubject}
-            onChange={setSelectedSubject}
-            isDisabled={!selectedClass}
-            placeholder="Select subject"
-          />
+
+        {err && <div className="alert alert-error text-sm">{err}</div>}
+
+        <div className="flex gap-2">
+          {!editingId ? (
+            <button className="btn btn-success" onClick={saveNew} disabled={saving}>Add Row</button>
+          ) : (
+            <>
+              <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>Update</button>
+              <button className="btn" onClick={clearForm} type="button">Cancel</button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded shadow p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Set Times</h3>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 rounded border" onClick={copyFirstFilledToAll}>
-              Copy first time to all
-            </button>
-            <button className="px-3 py-1 rounded border" onClick={clearAll}>
-              Clear all
-            </button>
+      {/* --- Filters --- */}
+      <div className="bg-white border rounded p-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          <SelectBox label="Filter: Class" value={filters.class_id} onChange={(v)=>setFilters(f=>({...f, class_id:v}))} options={classes} getLabel={(o)=>o.name || o.title} />
+          <SelectBox label="Filter: Section" value={filters.section_id} onChange={(v)=>setFilters(f=>({...f, section_id:v}))} options={sections} getLabel={(o)=>o.name} />
+          <SelectBox label="Filter: Teacher" value={filters.teacher_id} onChange={(v)=>setFilters(f=>({...f, teacher_id:v}))} options={teachers} getLabel={(o)=>o.full_name || o.name} />
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Filter: Day</label>
+            <select value={filters.day} onChange={e=>setFilters(f=>({...f, day:e.target.value}))} className="select select-bordered">
+              <option value="">All days</option>
+              {DAYS.map(d=> <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
           </div>
+          <div className="flex items-end"><button className="btn" onClick={reloadTable}>Apply</button></div>
         </div>
+      </div>
 
-        <form id="tt-form">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-3 py-2 text-left">Day</th>
-                  <th className="px-3 py-2 text-left w-40">Period</th>
-                  <th className="px-3 py-2 text-left w-40">Start</th>
-                  <th className="px-3 py-2 text-left w-40">End</th>
+      {/* --- Table --- */}
+      <div className="bg-white border rounded overflow-x-auto">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Period</th>
+              <th>Time</th>
+              <th>Class / Section</th>
+              <th>Subject</th>
+              <th>Teacher</th>
+              <th>Room</th>
+              <th className="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={8}>Loading…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={8}>No rows</td></tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.day_of_week_display || r.day_of_week || r.day}</td>
+                  <td>{r.period}</td>
+                  <td>{timeHHMM(r.start_time)}–{timeHHMM(r.end_time)}</td>
+                  <td>{r.class_name_label || classLabel(r.class_name)}{" "}{r.section_label || sectionLabel(r.section)}</td>
+                  <td>{r.subject_label || subjectLabel(r.subject)}</td>
+                  <td>{r.teacher_label || teacherLabel(r.teacher)}</td>
+                  <td>{r.classroom_label || roomLabel(r.classroom) || r.room || "—"}</td>
+                  <td className="text-right">
+                    <button className="btn btn-xs mr-2" onClick={()=>onEdit(r)}>Edit</button>
+                    <button className="btn btn-xs btn-error" onClick={()=>onDelete(r.id)}>Delete</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {DAYS.map((d) => (
-                  <tr key={d.value} className="border-t">
-                    <td className="px-3 py-2">{d.label}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        id={`period_${d.value}`}
-                        name={`period_${d.value}`}
-                        className="border rounded px-2 py-1 w-36"
-                        placeholder="e.g., 1st"
-                        defaultValue=""
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        id={`start_${d.value}`}
-                        name={`start_${d.value}`}
-                        type="time"
-                        className="border rounded px-2 py-1 w-36"
-                        defaultValue=""
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        id={`end_${d.value}`}
-                        name={`end_${d.value}`}
-                        type="time"
-                        className="border rounded px-2 py-1 w-36"
-                        defaultValue=""
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </form>
-
-        <div className="mt-3">
-          <button
-            onClick={createMany}
-            className="px-5 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-            disabled={!selectedClass || !selectedSection || !selectedSubject}
-          >
-            Save Timetable
-          </button>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-
-      <div className="bg-white rounded shadow p-4 mt-4">
-        <h3 className="text-lg font-semibold mb-3">
-          Current Rows{" "}
-          {selectedClass
-            ? `— ${selectedClass.label}${
-                selectedSection
-                  ? " • " +
-                    (selectedSection.label ?? selectedSection.value)
-                  : ""
-              }`
-            : ""}
-        </h3>
-
-        {loadingList ? (
-          <div className="text-slate-500">Loading…</div>
-        ) : routines.length === 0 ? (
-          <div className="text-slate-500">No rows yet.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-3 py-2 text-left">Day</th>
-                  <th className="px-3 py-2 text-left">Period</th>
-                  <th className="px-3 py-2 text-left">Section</th>
-                  <th className="px-3 py-2 text-left">Subject</th> {/* NEW */}
-                  <th className="px-3 py-2 text-left">Start</th>
-                  <th className="px-3 py-2 text-left">End</th>
-                  <th className="px-3 py-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {routines.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-3 py-2">{r.day}</td>
-                    <td className="px-3 py-2">{r.period || "-"}</td>
-                    <td className="px-3 py-2">
-                      {r.sectionText ||
-                        r.__raw?.section_label ||
-                        r.__raw?.section ||
-                        "-"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.subjectText ||
-                        r.__raw?.subject_label ||
-                        r.__raw?.subject ||
-                        "-"}
-                    </td>
-                    <td className="px-3 py-2">{fmt12(r.start)}</td>
-                    <td className="px-3 py-2">{fmt12(r.end)}</td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => openEdit(r)}
-                          className="px-3 py-1 rounded bg-slate-600 text-white hover:bg-slate-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => removeRow(r.id)}
-                          className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {editOpen && editRow && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50">
-          <div className="bg-white rounded-lg p-4 w-[95%] max-w-lg">
-            <h3 className="text-lg font-semibold mb-3">Edit Row</h3>
-
-            <div className="grid grid-cols-1 gap-3 mb-3">
-              <div>
-                <label className="block text-sm mb-1">Day</label>
-                <Select
-                  options={DAYS}
-                  value={DAYS.find((d) => d.value === editRow._day)}
-                  onChange={(opt) =>
-                    setEditRow((s) => ({ ...s, _day: opt.value }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Period</label>
-                <input
-                  className="border rounded px-3 py-2 w-full"
-                  value={editRow._period}
-                  onChange={(e) =>
-                    setEditRow((s) => ({ ...s, _period: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm mb-1">Start</label>
-                  <input
-                    type="time"
-                    className="border rounded px-3 py-2 w-full"
-                    value={editRow._start}
-                    onChange={(e) =>
-                      setEditRow((s) => ({ ...s, _start: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">End</label>
-                  <input
-                    type="time"
-                    className="border rounded px-3 py-2 w-full"
-                    value={editRow._end}
-                    onChange={(e) =>
-                      setEditRow((s) => ({ ...s, _end: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setEditOpen(false);
-                  setEditRow(null);
-                }}
-                className="px-4 py-2 rounded border"
-              >
-                Close
-              </button>
-              <button
-                onClick={submitEdit}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-              >
-                Update
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
+}
+
+function SelectBox({ label, value, onChange, options, getLabel }) {
+  return (
+    <div className="flex flex-col">
+      {label && <label className="text-xs text-gray-600">{label}</label>}
+      <select className="select select-bordered" value={value || ""} onChange={(e)=>onChange(e.target.value)}>
+        <option value="">Select…</option>
+        {(options||[]).map((o) => (
+          <option key={o.id} value={o.id}>{getLabel ? getLabel(o) : (o.name || o.title || o.label || o.id)}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function jsonErrors(payload) {
+  try {
+    if (typeof payload === "string") return payload;
+    if (Array.isArray(payload)) return payload.join("; ");
+    return Object.entries(payload).map(([k,v]) => `${k}: ${Array.isArray(v)?v.join(', '):v}`).join(" | ");
+  } catch {
+    return "Validation error";
+  }
 }
