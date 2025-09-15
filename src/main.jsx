@@ -39,12 +39,15 @@ import AdminAcknowledgment from "./pages/DashboardPages/Master/AdminAcknowledgme
 import ResultManager from "./pages/DashboardPages/academics/ResultManager.jsx";
 import ManageUsers from "./pages/Admin/ManageUsers.jsx";
 import LinkAccount from "./pages/Admin/LinkAccount.jsx"
-
+import ManagePeriods from "./pages/DashboardPages/academics/ManagePeriods.jsx";
 import AddSection from "./pages/DashboardPages/academics/AddSection.jsx";
 import AssignedSubjects from "./pages/DashboardPages/Academics/AssignedSubjects.jsx";
 import ClassTimetable from "./pages/DashboardPages/academics/ClassTimetable.jsx"
 import AssignTeacherForm from "./pages/DashboardPages/academics/AssignTeacherForm.jsx";
 import AssignTeacherList from "./pages/DashboardPages/academics/AssignTeacherList.jsx";
+import ManageClassrooms from "./pages/DashboardPages/academics/ManageClassrooms.jsx";
+
+
 /* === Teacher Panel imports (new) === */
 import TeacherPanel from "./Layout/TeacherPanel.jsx";
 import TeacherDashboard from "./pages/Teachers/Dashboard.jsx";
@@ -150,6 +153,7 @@ const router = createBrowserRouter([
       { path: "add-acknowledgement", element: <AdminAcknowledgment /> },
       { path: "add-result", element: <ResultManager /> },
       { path: "users", element: <ManageUsers /> },
+      { path: "rooms", element: <ManageClassrooms /> },
     
 
       { path: "add-section", element: <AddSection /> },
@@ -158,6 +162,7 @@ const router = createBrowserRouter([
       { path: "assigned-teacher-form", element: <AssignTeacherForm /> },
       { path: "assigned-teacher-list", element: <AssignTeacherList /> },
       { path: "link-account", element: <LinkAccount /> },
+      { path: "periods", element: <ManagePeriods /> }, 
     ],
   },
 

@@ -48,9 +48,8 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`h-screen bg-[#2C8E3F] text-white flex flex-col ${
-        collapsed ? "w-16" : "w-64"
-      } transition-all duration-300`}
+      className={`h-screen bg-[#2C8E3F] text-white flex flex-col ${collapsed ? "w-16" : "w-64"
+        } transition-all duration-300`}
     >
       {/* Top */}
       <div className="relative">
@@ -58,9 +57,8 @@ export default function Sidebar() {
           <Link to="/">
             <img
               src={institutionInfo?.logo || "/default-logo.png"}
-              className={`object-cover rounded-full transition-all duration-300 ${
-                collapsed ? "w-10 h-10" : "w-12 h-12"
-              }`}
+              className={`object-cover rounded-full transition-all duration-300 ${collapsed ? "w-10 h-10" : "w-12 h-12"
+                }`}
               alt="Logo"
             />
           </Link>
@@ -91,9 +89,8 @@ export default function Sidebar() {
           </button>
 
           <div
-            className={`transition-all duration-300 overflow-hidden ${
-              openId === "site" ? "max-h-[600px]" : "max-h-0"
-            } ${collapsed ? "pl-0" : "pl-4"}`}
+            className={`transition-all duration-300 overflow-hidden ${openId === "site" ? "max-h-[600px]" : "max-h-0"
+              } ${collapsed ? "pl-0" : "pl-4"}`}
           >
             <NavLink to="/dashboard/college-info" className={navLinkStyle}>
               <PiBuildingsDuotone className="text-lg" />
@@ -146,9 +143,8 @@ export default function Sidebar() {
           </button>
 
           <div
-            className={`transition-all duration-300 overflow-hidden ${
-              openId === "default" ? "max-h-[600px]" : "max-h-0"
-            } ${collapsed ? "pl-0" : "pl-4"}`}
+            className={`transition-all duration-300 overflow-hidden ${openId === "default" ? "max-h-[600px]" : "max-h-0"
+              } ${collapsed ? "pl-0" : "pl-4"}`}
           >
             <NavLink to="/dashboard/student-info-form" className={navLinkStyle}>
               <FaUserGraduate className="text-lg" />
@@ -198,6 +194,14 @@ export default function Sidebar() {
               <MdLibraryBooks className="text-lg" />
               {!collapsed && "Class Timetable"}
             </NavLink>
+            <NavLink to="/dashboard/periods" className={navLinkStyle}>
+              <MdLibraryBooks className="text-lg" />
+              {!collapsed && "Manage Periods"}
+            </NavLink>
+            <NavLink to="/dashboard/rooms" className={navLinkStyle}>
+              <MdLibraryBooks className="text-lg" />
+              {!collapsed && "Manage Classrooms"}
+            </NavLink>
             <NavLink to="/dashboard/add-section" className={navLinkStyle}>
               <MdClass className="text-lg" />
               {!collapsed && "Add Section"}
@@ -236,9 +240,8 @@ export default function Sidebar() {
         </NavLink>
 
         <button
-          className={`flex items-center gap-2 px-3 py-2 w-full rounded-md text-white hover:bg-[#e2b42b] hover:text-white transition-all duration-200 ${
-            collapsed ? "justify-center" : ""
-          }`}
+          className={`flex items-center gap-2 px-3 py-2 w-full rounded-md text-white hover:bg-[#e2b42b] hover:text-white transition-all duration-200 ${collapsed ? "justify-center" : ""
+            }`}
           title="Logout"
           onClick={handleLogout}
         >
