@@ -3,22 +3,63 @@ import AxiosInstance from "../../components/AxiosInstance";
 
 export default function MyStudents() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
 
+  // class/section state
+  const [classes, setClasses] = useState([]);          // [{id, name, sections:[{id,name}]}]
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [sections, setSections] = useState([]);        // current class' sections
+  const [selectedSectionId, setSelectedSectionId] = useState("");
+
+  // 1) Load classes (with embedded sections)
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const { data } = await AxiosInstance.get("people/students/my-students/");
-        setRows(Array.isArray(data) ? data : []);
+        const { data } = await AxiosInstance.get("class-names/"); // /api/class-names/
+        if (!cancelled) setClasses(Array.isArray(data) ? data : []);
       } catch (e) {
-        console.error("Failed to load students", e);
-        setRows([]);
-      } finally {
-        setLoading(false);
+        console.error("Failed to load classes", e);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
+
+  // 2) When class changes, update the available sections + reset selection
+  useEffect(() => {
+    const cls = classes.find(c => String(c.id) === String(selectedClassId));
+    setSections(cls?.sections || []);
+    setSelectedSectionId(""); // reset section when class changes
+  }, [selectedClassId, classes]);
+
+  // 3) Fetch students when both class & section are chosen
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // require both selections
+      if (!selectedClassId || !selectedSectionId) {
+        setRows([]); // clear table until both are selected
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data } = await AxiosInstance.get("students/", {
+          params: {
+            class_id: selectedClassId,
+            section_id: selectedSectionId,
+          },
+        }); // /api/people/students/?class_id=..&section_id=..
+        if (!cancelled) setRows(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("Failed to load students", e);
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedClassId, selectedSectionId]);
 
   const filtered = useMemo(() => {
     if (!q) return rows;
@@ -31,18 +72,45 @@ export default function MyStudents() {
     );
   }, [q, rows]);
 
-  if (loading) return <div className="p-4">Loading…</div>;
-
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <h2 className="text-xl font-semibold">My Students</h2>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-64 px-3 py-2 border rounded-lg text-sm"
-          placeholder="Search by name, roll, class, section…"
-        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Class select */}
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm bg-white"
+          >
+            <option value="">Select class…</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {/* Section select (depends on class) */}
+          <select
+            value={selectedSectionId}
+            onChange={(e) => setSelectedSectionId(e.target.value)}
+            disabled={!selectedClassId}
+            className="px-3 py-2 border rounded-lg text-sm bg-white disabled:bg-slate-100"
+          >
+            <option value="">Select section…</option>
+            {sections.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+
+          {/* Search box */}
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="w-64 px-3 py-2 border rounded-lg text-sm"
+            placeholder="Search by name, roll, class, section…"
+          />
+        </div>
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden">
@@ -55,7 +123,9 @@ export default function MyStudents() {
           <div>Photo</div>
         </div>
 
-        {filtered.length ? (
+        {loading ? (
+          <div className="p-4 text-sm">Loading…</div>
+        ) : filtered.length ? (
           filtered.map((s, i) => (
             <div key={s.id} className="grid grid-cols-6 gap-3 p-3 text-sm border-b last:border-b-0">
               <div>{i + 1}</div>
@@ -71,7 +141,9 @@ export default function MyStudents() {
             </div>
           ))
         ) : (
-          <div className="p-4 text-sm text-slate-500">No students found.</div>
+          <div className="p-4 text-sm text-slate-500">
+            {selectedClassId && selectedSectionId ? "No students found." : "Pick class and section to load students."}
+          </div>
         )}
       </div>
     </div>

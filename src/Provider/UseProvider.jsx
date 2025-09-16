@@ -38,7 +38,7 @@ export const UserProvider = ({ children }) => {
 
       const data = response.data;
       setUser(data);
-      localStorage.setItem("user", JSON.stringify(data)); // ✅ Correct now
+      localStorage.setItem("user", JSON.stringify(data));
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to fetch user data.");

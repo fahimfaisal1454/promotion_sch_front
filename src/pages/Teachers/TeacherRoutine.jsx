@@ -13,35 +13,6 @@ const DAYS = [
   { value: "Sun", label: "Sunday" },
 ];
 
-// Try to derive the teacher id from various places/endpoints.
-// This mirrors the "try multiple endpoints until one works" pattern you use elsewhere. :contentReference[oaicite:1]{index=1}
-async function resolveTeacherId() {
-  // 1) from localStorage (preferred if you save it at login)
-  const stored = localStorage.getItem("teacher_id");
-  if (stored) return String(stored);
-
-  // 2) from a “me”/“user” style endpoint
-  const candidates = ["people/me/", "teacher/me/", "users/me/", "user/"];
-  for (const url of candidates) {
-    try {
-      const res = await AxiosInstance.get(url);
-      const data = res?.data || {};
-      // common shapes to check
-      const id =
-        data?.teacher_id ??
-        data?.teacher?.id ??
-        data?.id; // if endpoint is already teacher-scoped
-      if (id) {
-        localStorage.setItem("teacher_id", String(id));
-        return String(id);
-      }
-    } catch {
-      // ignore and try next
-    }
-  }
-  return ""; // unknown
-}
-
 export default function TeacherRoutine() {
   const [routine, setRoutine] = useState({});
   const [loading, setLoading] = useState(false);
@@ -50,41 +21,26 @@ export default function TeacherRoutine() {
     (async () => {
       setLoading(true);
       try {
-        let teacherId = localStorage.getItem("teacher_id") || "";
-        if (!teacherId) {
-          teacherId = await resolveTeacherId();
+        // get user from localStorage
+        const userStr = localStorage.getItem("user");
+        const user = userStr ? JSON.parse(userStr) : null;
+        const userID = user?.id || null;
+
+        if (!userID) {
+          toast.error("No logged-in user found");
+          setLoading(false);
+          return;
         }
 
-        let res;
-        if (teacherId) {
-          // Primary: ask backend to filter by teacher_id
-          res = await AxiosInstance.get("timetable/week", {
-            params: { teacher_id: teacherId },
-          });
-        } else {
-          // Fallback: if backend supports teacher=me, use it
-          res = await AxiosInstance.get("timetable/week", {
-            params: { teacher: "me" },
-          });
-        }
+        // call backend with user_id
+        const res = await AxiosInstance.get("timetable/week", {
+          params: { user_id: userID },
+        });
 
         const data = res?.data || {};
+        console.log("Fetched routine data:", data);
 
-        // Last-resort client filter: if API returned extras, keep only this teacher's rows
-        if (teacherId) {
-          const filtered = {};
-          for (const d of DAYS) {
-            const rows = Array.isArray(data?.[d.value]) ? data[d.value] : [];
-            filtered[d.value] = rows.filter(
-              (r) =>
-                // handle different shapes defensively
-                String(r?.teacher_id ?? r?.teacher ?? "") === String(teacherId)
-            );
-          }
-          setRoutine(filtered);
-        } else {
-          setRoutine(data);
-        }
+        setRoutine(data);
       } catch (e) {
         console.error(e);
         toast.error("Failed to load routine");
