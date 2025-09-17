@@ -11,8 +11,6 @@ export default function MyStudents() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [sections, setSections] = useState([]);        // current class' sections
   const [selectedSectionId, setSelectedSectionId] = useState("");
-  const [subjects, setSubjects] = useState([]);        // subjects for selected class+section
-  const [selectedSubjectId, setSelectedSubjectId] = useState("");
 
   // 1) Load classes (with embedded sections)
   useEffect(() => {
@@ -28,53 +26,18 @@ export default function MyStudents() {
     return () => { cancelled = true; };
   }, []);
 
-  // 2) When class changes, update sections and reset section+subject
+  // 2) When class changes, update sections and reset section
   useEffect(() => {
     const cls = classes.find(c => String(c.id) === String(selectedClassId));
     setSections(cls?.sections || []);
     setSelectedSectionId("");
-    setSubjects([]);
-    setSelectedSubjectId("");
   }, [selectedClassId, classes]);
 
-  // 3) When section changes, load subjects assigned to this teacher in that class+section
+  // 3) Fetch students when both class & section are chosen
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!selectedClassId || !selectedSectionId) {
-        setSubjects([]);
-        setSelectedSubjectId("");
-        return;
-      }
-      try {
-        const { data } = await AxiosInstance.get("timetable/", {
-          params: { teacher: "me", class_id: selectedClassId, section_id: selectedSectionId },
-        });
-        if (!cancelled) {
-          const subjOpts = (Array.isArray(data) ? data : [])
-            .map(r => ({ id: r.subject, name: r.subject_label }));
-          // dedupe by id
-          const seen = new Map();
-          subjOpts.forEach(s => { if (!seen.has(s.id)) seen.set(s.id, s.name); });
-          setSubjects(Array.from(seen, ([id, name]) => ({ id, name })));
-          setSelectedSubjectId("");
-        }
-      } catch (e) {
-        console.error("Failed to load subjects", e);
-        if (!cancelled) {
-          setSubjects([]);
-          setSelectedSubjectId("");
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedClassId, selectedSectionId]);
-
-  // 4) Fetch students when all three are selected
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!selectedClassId || !selectedSectionId || !selectedSubjectId) {
         setRows([]);
         return;
       }
@@ -84,7 +47,6 @@ export default function MyStudents() {
           params: {
             class_id: selectedClassId,
             section_id: selectedSectionId,
-            subject_id: selectedSubjectId,
           },
         });
         if (!cancelled) setRows(Array.isArray(data) ? data : []);
@@ -96,7 +58,7 @@ export default function MyStudents() {
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedClassId, selectedSectionId, selectedSubjectId]);
+  }, [selectedClassId, selectedSectionId]);
 
   // search filter
   const filtered = useMemo(() => {
@@ -141,19 +103,6 @@ export default function MyStudents() {
             ))}
           </select>
 
-          {/* Subject select */}
-          <select
-            value={selectedSubjectId}
-            onChange={(e) => setSelectedSubjectId(e.target.value)}
-            disabled={!selectedSectionId}
-            className="px-3 py-2 border rounded-lg text-sm bg-white disabled:bg-slate-100"
-          >
-            <option value="">Select subject…</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-
           {/* Search box */}
           <input
             value={q}
@@ -193,9 +142,9 @@ export default function MyStudents() {
           ))
         ) : (
           <div className="p-4 text-sm text-slate-500">
-            {selectedClassId && selectedSectionId && selectedSubjectId
+            {selectedClassId && selectedSectionId
               ? "No students found."
-              : "Pick class, section, and subject to load students."}
+              : "Pick class and section to load students."}
           </div>
         )}
       </div>

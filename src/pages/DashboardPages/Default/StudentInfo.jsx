@@ -6,6 +6,7 @@ import { Toaster, toast } from "react-hot-toast";
 
 const required = (v) => v !== null && v !== undefined && String(v).trim() !== "";
 
+/** Small avatar helper */
 function AvatarCircle({ name, src, size = 36 }) {
   if (src) {
     return (
@@ -33,6 +34,16 @@ function AvatarCircle({ name, src, size = 36 }) {
   );
 }
 
+/** Build a username from a name (lowercase, remove non-alphanum, collapse spaces) */
+function slugifyName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[^a-z0-9]+/g, "") // only letters+digits
+    .slice(0, 24); // keep it short-ish
+}
+
 export default function StudentInfo() {
   // data
   const [students, setStudents] = useState([]);
@@ -40,12 +51,11 @@ export default function StudentInfo() {
   const [classToSections, setClassToSections] = useState({});
 
   // ui
-  const [loading, setLoading] = useState(true);
-  const [tableBusy, setTableBusy] = useState(false);
+  const [loading, setLoading] = useState(true); // initial page load
+  const [tableBusy, setTableBusy] = useState(false); // list refresh spinner
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [createBusyId, setCreateBusyId] = useState(null);
 
   // filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,6 +91,12 @@ export default function StudentInfo() {
     must_change_password: true,
   });
 
+  // Username generation + availability
+  const [userEditedUsername, setUserEditedUsername] = useState(false); // if admin manually typed username
+  const [usernameAvailable, setUsernameAvailable] = useState(null); // true/false/null
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameNote, setUsernameNote] = useState(""); // hint/suggestion text
+
   // pagination
   const [page, setPage] = useState(1);
   const pageSize = 12;
@@ -90,26 +106,31 @@ export default function StudentInfo() {
     () => classes.map((c) => ({ value: c.id, label: c.name })),
     [classes]
   );
+
   const filterSectionOptions = useMemo(() => {
     if (!filterClassId) return [];
     const secs = classToSections[Number(filterClassId)] || [];
     return secs.map((s) => ({ value: s.id, label: s.name }));
   }, [filterClassId, classToSections]);
+
   const sectionOptionsForForm = useMemo(() => {
     if (!form.class_name) return [];
     const secs = classToSections[Number(form.class_name)] || [];
     return secs.map((s) => ({ value: s.id, label: s.name }));
   }, [form.class_name, classToSections]);
 
-  // maps
+  // maps for display
   const classMap = useMemo(() => {
     const m = {};
     classes.forEach((c) => (m[c.id] = c.name));
     return m;
   }, [classes]);
+
   const sectionNameById = useMemo(() => {
     const m = {};
-    Object.values(classToSections).forEach((arr) => arr.forEach((s) => (m[s.id] = s.name)));
+    Object.values(classToSections).forEach((arr) =>
+      arr.forEach((s) => (m[s.id] = s.name))
+    );
     return m;
   }, [classToSections]);
 
@@ -137,7 +158,7 @@ export default function StudentInfo() {
     })();
   }, []);
 
-  // derived list
+  // derived list for table
   const filtered = useMemo(() => {
     let out = Array.isArray(students) ? [...students] : [];
     if (searchTerm.trim()) {
@@ -168,6 +189,13 @@ export default function StudentInfo() {
     }
   };
 
+  const resetUsernameState = () => {
+    setUserEditedUsername(false);
+    setUsernameAvailable(null);
+    setCheckingUsername(false);
+    setUsernameNote("");
+  };
+
   const openCreate = () => {
     setEditingId(null);
     setForm({
@@ -192,6 +220,7 @@ export default function StudentInfo() {
       is_active: true,
       must_change_password: true,
     });
+    resetUsernameState();
     setCreateLogin(false);
     setPreview(null);
     setTouched({});
@@ -224,10 +253,12 @@ export default function StudentInfo() {
       is_active: true,
       must_change_password: true,
     });
+    resetUsernameState();
     setTouched({});
     setModalOpen(true);
   };
 
+  // general form handlers
   const onChangeField = (e) => {
     const { name, value, type, files } = e.target;
     if (type === "file") {
@@ -243,7 +274,75 @@ export default function StudentInfo() {
     }
   };
   const onBlur = (key) => setTouched((t) => ({ ...t, [key]: true }));
-  const onChangeUser = (field, val) => setUserForm((u) => ({ ...u, [field]: val }));
+
+  // Auto-generate username from full name while *not* manually edited
+  useEffect(() => {
+    if (!createLogin) return; // only when creating/updating login
+    if (userEditedUsername) return; // don't override admin's manual edits
+    if (!form.full_name) {
+      setUserForm((u) => ({ ...u, username: "" }));
+      setUsernameAvailable(null);
+      setUsernameNote("");
+      return;
+    }
+    const suggestion = slugifyName(form.full_name);
+    setUserForm((u) => (u.username === suggestion ? u : { ...u, username: suggestion }));
+  }, [form.full_name, createLogin, userEditedUsername]);
+
+  // Debounced availability check
+  useEffect(() => {
+    if (!createLogin) return;
+    const uname = userForm.username?.trim();
+    if (!uname) {
+      setUsernameAvailable(null);
+      setUsernameNote("");
+      return;
+    }
+    let cancelled = false;
+    setCheckingUsername(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await axiosInstance.get("users/check-username/", {
+          params: { username: uname },
+        });
+        if (cancelled) return;
+        const available = !!data?.available;
+        setUsernameAvailable(available);
+        if (!available) {
+          // prefer server suggestion if provided
+          const serverSug =
+            (data?.suggestion && String(data.suggestion)) ||
+            (data?.suggestions && Array.isArray(data.suggestions) && data.suggestions[0]);
+          if (!userEditedUsername) {
+            // auto-apply suggestion only if user hasn't edited by hand
+            if (serverSug) {
+              setUserForm((u) => ({ ...u, username: serverSug }));
+              setUsernameNote("That username was taken. Suggested a free one.");
+            } else {
+              const fallback = `${uname}${Math.floor(100 + Math.random() * 900)}`;
+              setUserForm((u) => ({ ...u, username: fallback }));
+              setUsernameNote("That username was taken. Suggested a free one.");
+            }
+          } else {
+            setUsernameNote("Username is taken. Please pick another.");
+          }
+        } else {
+          setUsernameNote("");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setUsernameAvailable(null);
+          setUsernameNote("");
+        }
+      } finally {
+        if (!cancelled) setCheckingUsername(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [userForm.username, createLogin, userEditedUsername]);
 
   const onDelete = async (id) => {
     if (!window.confirm("Delete this student?")) return;
@@ -253,43 +352,6 @@ export default function StudentInfo() {
       await refreshStudents();
     } catch {
       toast.error("Delete failed.");
-    }
-  };
-
-  const createUserForStudent = async (s) => {
-    if (s.user) {
-      toast("User already linked for this student.");
-      return;
-    }
-
-    const username =
-      String(s.full_name || "student").toLowerCase().replace(/\s+/g, "") +
-      (s.roll_number ? String(s.roll_number) : "");
-
-    const payload = {
-      username,
-      email: s.contact_email || "",
-      phone: s.contact_phone || "",
-      role: "Student",
-      is_active: true,
-      must_change_password: true,
-    };
-
-    try {
-      setCreateBusyId(s.id);
-      const ures = await axiosInstance.post("admin/users/", payload);
-      const newUserId = ures?.data?.id;
-      await axiosInstance.post(`students/${s.id}/link-user/`, { user_id: newUserId });
-      toast.success("User created & linked.");
-      await refreshStudents();
-    } catch (err) {
-      console.error(err);
-      const detail =
-        err?.response?.data?.detail ||
-        (typeof err?.response?.data === "object" ? JSON.stringify(err.response.data) : "Failed to create user.");
-      toast.error(detail);
-    } finally {
-      setCreateBusyId(null);
     }
   };
 
@@ -347,6 +409,11 @@ export default function StudentInfo() {
 
       // optional user creation/update (bottom of form)
       if (createLogin) {
+        if (!required(userForm.username)) {
+          toast.error("Username is required for login.");
+          setSubmitting(false);
+          return;
+        }
         if (savedUserId) {
           const patchPayload = {
             username: userForm.username,
@@ -545,16 +612,6 @@ export default function StudentInfo() {
                       >
                         Delete
                       </button>
-                      {!s.user && (
-                        <button
-                          onClick={() => createUserForStudent(s)}
-                          disabled={createBusyId === s.id}
-                          className="px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
-                          title="Create login for this student"
-                        >
-                          {createBusyId === s.id ? "Creating…" : "Create User"}
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -593,7 +650,7 @@ export default function StudentInfo() {
         </div>
       )}
 
-      {/* Modal (now scrollable content) */}
+      {/* Modal (scrollable) */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative max-h-[90vh] flex flex-col">
@@ -605,7 +662,6 @@ export default function StudentInfo() {
               ✕
             </button>
 
-            {/* Scrollable body */}
             <div className="p-6 overflow-y-auto">
               <h2 className="text-xl font-bold text-center mb-4">
                 {editingId ? "Edit Student" : "Add Student"}
@@ -842,18 +898,33 @@ export default function StudentInfo() {
 
                 {createLogin && (
                   <>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1">
                         Username <span className="text-red-600">*</span>
                       </label>
                       <input
                         value={userForm.username}
-                        onChange={(e) => setUserForm((u) => ({ ...u, username: e.target.value }))}
+                        onChange={(e) => {
+                          setUserForm((u) => ({ ...u, username: e.target.value }));
+                          setUserEditedUsername(true);
+                        }}
+                        onBlur={() => setUserEditedUsername(true)}
                         className="w-full border p-2 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                         placeholder="username"
                         required
                       />
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        {checkingUsername && <span className="text-slate-500">Checking…</span>}
+                        {usernameAvailable === true && !checkingUsername && (
+                          <span className="text-green-600">✅ Available</span>
+                        )}
+                        {usernameAvailable === false && !checkingUsername && (
+                          <span className="text-red-600">❌ Taken</span>
+                        )}
+                        {usernameNote && <span className="text-slate-600">• {usernameNote}</span>}
+                      </div>
                     </div>
+
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
                       <input

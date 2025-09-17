@@ -74,10 +74,10 @@ export default function TeacherSidebar() {
           {!collapsed && "My Profile"}
         </NavLink>
 
-        <NavLink to="/teacher/classes" className={navLinkStyle} title="My Classes">
+        {/* <NavLink to="/teacher/classes" className={navLinkStyle} title="My Classes">
           <FaChalkboardTeacher className="text-lg" />
           {!collapsed && "My Classes"}
-        </NavLink>
+        </NavLink> */}
         <NavLink to="/teacher/students" className={navLinkStyle} title="Students">
           {/* choose any icon you already use; keeping style consistent */}
           <FaChalkboardTeacher className="text-lg" />
