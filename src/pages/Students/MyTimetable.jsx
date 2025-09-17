@@ -29,7 +29,7 @@ export default function MyTimetable(){
             <div>{r.period}</div>
             <div>{r.subject_label || r.subject}</div>
             <div>{r.teacher_label || "-"}</div>
-            <div>{r.room || "-"}</div>
+            <div>{r.classroom_label || r.room || "—"}</div>
           </div>
         )) : <div className="p-4 text-sm text-slate-500">No entries found.</div>}
       </div>

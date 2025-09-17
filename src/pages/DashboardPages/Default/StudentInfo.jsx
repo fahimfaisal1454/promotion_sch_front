@@ -45,6 +45,7 @@ export default function StudentInfo() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createBusyId, setCreateBusyId] = useState(null);
 
   // filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -252,6 +253,43 @@ export default function StudentInfo() {
       await refreshStudents();
     } catch {
       toast.error("Delete failed.");
+    }
+  };
+
+  const createUserForStudent = async (s) => {
+    if (s.user) {
+      toast("User already linked for this student.");
+      return;
+    }
+
+    const username =
+      String(s.full_name || "student").toLowerCase().replace(/\s+/g, "") +
+      (s.roll_number ? String(s.roll_number) : "");
+
+    const payload = {
+      username,
+      email: s.contact_email || "",
+      phone: s.contact_phone || "",
+      role: "Student",
+      is_active: true,
+      must_change_password: true,
+    };
+
+    try {
+      setCreateBusyId(s.id);
+      const ures = await axiosInstance.post("admin/users/", payload);
+      const newUserId = ures?.data?.id;
+      await axiosInstance.post(`students/${s.id}/link-user/`, { user_id: newUserId });
+      toast.success("User created & linked.");
+      await refreshStudents();
+    } catch (err) {
+      console.error(err);
+      const detail =
+        err?.response?.data?.detail ||
+        (typeof err?.response?.data === "object" ? JSON.stringify(err.response.data) : "Failed to create user.");
+      toast.error(detail);
+    } finally {
+      setCreateBusyId(null);
     }
   };
 
@@ -507,6 +545,16 @@ export default function StudentInfo() {
                       >
                         Delete
                       </button>
+                      {!s.user && (
+                        <button
+                          onClick={() => createUserForStudent(s)}
+                          disabled={createBusyId === s.id}
+                          className="px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
+                          title="Create login for this student"
+                        >
+                          {createBusyId === s.id ? "Creating…" : "Create User"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
