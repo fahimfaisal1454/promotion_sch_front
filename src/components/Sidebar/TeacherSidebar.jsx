@@ -93,7 +93,10 @@ export default function TeacherSidebar() {
           <FaRegCalendarAlt className="text-lg" />
           {!collapsed && "Attendance"}
         </NavLink>
-
+        <NavLink to="/teacher/attendance-report" className={navLinkStyle} title="Attendance">
+          <FaRegCalendarAlt className="text-lg" />
+          {!collapsed && "Attendance Report"}
+        </NavLink>
         <NavLink to="/teacher/exams" className={navLinkStyle} title="Exams/Marks">
           <FaBookOpen className="text-lg" />
           {!collapsed && "Exams/Marks"}

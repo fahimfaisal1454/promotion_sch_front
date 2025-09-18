@@ -60,6 +60,7 @@ import Reports from "./pages/Teachers/Reports.jsx";
 import TeacherNotices from "./pages/Teachers/Notices.jsx";
 import MyStudents from "./pages/Teachers/MyStudents.jsx";
 import TeacherRoutine from "./pages/Teachers/TeacherRoutine.jsx";
+import AttendanceReport from "./pages/Teachers/AttendanceReport";
 
 
 /* === Student Panel imports (new) === */
@@ -185,7 +186,10 @@ const router = createBrowserRouter([
       { path: "notices", element: <TeacherNotices /> },
       { path: "students", element: <MyStudents /> },
       { path: "profile", element: <MyProfile /> },
-      { path: "routine", element: <TeacherRoutine /> }
+      { path: "routine", element: <TeacherRoutine /> },
+      { path: "attendance-report", element: <AttendanceReport /> },
+      
+      
     ],
   },
 
