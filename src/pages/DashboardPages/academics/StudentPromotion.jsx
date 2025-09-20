@@ -58,17 +58,17 @@ export default function StudentPromotion() {
   const [saving, setSaving] = useState(false);
 
   // Init years (prefer latest -> next year = +1)
-  useEffect(() => {
-    (async () => {
-      const ys = await getYears();
-      setYears(ys);
-      if (ys.length) {
-        const latest = Math.max(...ys);
-        setFromYear(String(latest));
-        setToYear(String(latest + 1));
-      }
-    })();
-  }, []);
+useEffect(() => {
+  (async () => {
+    const ys = await getYears();
+    setYears(ys);
+    if (ys.length) {
+      const current = Math.min(...ys);   // 👈 running year
+      setFromYear(String(current));
+      setToYear(String(current + 1));
+    }
+  })();
+}, []);
 
   // Load classes when year changes
   useEffect(() => {
